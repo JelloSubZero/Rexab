@@ -1,0 +1,31 @@
+# Python
+__pycache__/
+*.py[cod]
+*.pyo
+
+# Virtual environment
+.venv/
+venv/
+
+# Logs
+logs/
+*.log
+
+# SQLite
+*.db
+*.sqlite3
+
+# IDE
+.vscode/
+.idea/
+
+# Environment
+.env
+
+# OCR output
+static/receipts/
+static/qr/
+
+# OS
+.DS_Store
+Thumbs.db
