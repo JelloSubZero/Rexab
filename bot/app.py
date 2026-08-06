@@ -9,6 +9,8 @@ from handlers.room import router as room_router
 from handlers.receipt import router as receipt_router
 from handlers.receipt_callbacks import router as receipt_callbacks_router
 from handlers.room_invite import router as room_invite_router
+from handlers.split_bill import router as split_bill_router
+
 
 async def main():
     # Создаем таблицы
@@ -22,6 +24,7 @@ async def main():
 
     # Подключаем роутеры
     dp.include_router(room_invite_router)
+    dp.include_router(split_bill_router)
     dp.include_router(start_router)
     dp.include_router(room_router)
     dp.include_router(receipt_router)
