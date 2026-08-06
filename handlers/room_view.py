@@ -12,6 +12,8 @@ router = Router()
 async def room_view(
     callback: CallbackQuery,
 ):
+    print("ROOM VIEW CLICKED")
+
     room_id = int(
         callback.data.split(":")[1]
     )
@@ -23,10 +25,14 @@ async def room_view(
             room_id=room_id,
         )
 
+    print("RENDER OK")
+
     await callback.message.edit_text(
         view["text"],
         parse_mode="HTML",
         reply_markup=view["reply_markup"],
     )
+
+    print("EDIT OK")
 
     await callback.answer()

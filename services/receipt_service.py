@@ -42,3 +42,33 @@ class ReceiptService:
             session=session,
             room_id=room_id,
         )
+
+    @staticmethod
+    async def get_receipts(
+        session,
+        room_id: int,
+    ):
+        return await ReceiptRepository.get_by_room(
+            session=session,
+            room_id=room_id,
+        )
+
+    @staticmethod
+    async def get_receipt(
+        session,
+        receipt_id: int,
+    ):
+        return await ReceiptRepository.get_by_id(
+            session=session,
+            receipt_id=receipt_id,
+        )
+
+    @staticmethod
+    async def delete_receipt(
+        session,
+        receipt_id: int,
+    ):
+        return await ReceiptRepository.delete(
+            session=session,
+            receipt_id=receipt_id,
+        )

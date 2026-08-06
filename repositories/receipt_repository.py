@@ -83,3 +83,48 @@ class ReceiptRepository:
         await session.refresh(receipt)
 
         return receipt
+
+    @staticmethod
+    async def get_by_room(
+        session: AsyncSession,
+        room_id: int,
+    ) -> list[Receipt]:
+
+        result = await session.execute(
+            select(Receipt)
+            .where(Receipt.room_id == room_id)
+            .order_by(Receipt.id)
+        )
+
+        return result.scalars().all()
+
+
+    @staticmethod
+    async def delete(
+        session: AsyncSession,
+        receipt_id: int,
+    ) -> bool:
+
+        receipt = await session.get(
+            Receipt,
+            receipt_id,
+        )
+
+        if receipt is None:
+            return False
+
+        await session.delete(receipt)
+        await session.commit()
+
+        return True
+
+    @staticmethod
+    async def get_by_id(
+        session: AsyncSession,
+        receipt_id: int,
+    ) -> Receipt | None:
+
+        return await session.get(
+            Receipt,
+            receipt_id,
+        )
