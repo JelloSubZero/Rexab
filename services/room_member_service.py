@@ -1,6 +1,7 @@
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from repositories.room_member_repository import RoomMemberRepository
+from services.room_history_service import RoomHistoryService
 
 
 class RoomMemberService:
@@ -25,11 +26,22 @@ class RoomMemberService:
         if exists:
             return None
 
-        return await RoomMemberRepository.add_member(
+        member = await RoomMemberRepository.add_member(
             session=session,
             room_id=room_id,
             user_id=user_id,
         )
+
+        # Записываем событие в историю
+        await RoomHistoryService.create(
+            session=session,
+            room_id=room_id,
+            user_id=user_id,
+            action="member_joined",
+            description="Пользователь присоединился к комнате",
+        )
+
+        return member
 
     @staticmethod
     async def get_members(

@@ -76,6 +76,10 @@ async def room_history(
                 icon = "🗑"
                 action_text = "удалил платёж"
 
+            elif item.action == "member_joined":
+                icon = "👤"
+                action_text = "присоединился к комнате"
+
             else:
                 icon = "ℹ️"
                 action_text = item.action
@@ -91,7 +95,9 @@ async def room_history(
                 f"{action_text}\n"
             )
 
-            if item.description:
+            if item.description and item.action not in (
+                "member_joined",
+            ):
                 history_text += (
                     f"📝 {item.description}\n"
                 )
