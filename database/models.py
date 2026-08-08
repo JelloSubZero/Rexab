@@ -186,3 +186,41 @@ class RoomPayment(Base):
 
     room = relationship("Room")
     user = relationship("User")
+
+
+class RoomHistory(Base):
+    __tablename__ = "room_history"
+
+    id: Mapped[int] = mapped_column(
+        primary_key=True,
+    )
+
+    room_id: Mapped[int] = mapped_column(
+        ForeignKey("rooms.id"),
+    )
+
+    user_id: Mapped[int] = mapped_column(
+        ForeignKey("users.id"),
+    )
+
+    action: Mapped[str] = mapped_column(
+        String(50),
+    )
+
+    description: Mapped[str | None] = mapped_column(
+        String(255),
+        nullable=True,
+    )
+
+    amount: Mapped[float | None] = mapped_column(
+        Float,
+        nullable=True,
+    )
+
+    created_at: Mapped[datetime] = mapped_column(
+        DateTime,
+        default=datetime.utcnow,
+    )
+
+    room = relationship("Room")
+    user = relationship("User")

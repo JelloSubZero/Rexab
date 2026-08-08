@@ -5,6 +5,7 @@ from aiogram.utils.keyboard import InlineKeyboardBuilder
 from keyboards.debt_result_menu import debt_result_menu
 from keyboards.payment_delete_menu import payment_delete_menu
 from services.room_member_service import RoomMemberService
+from services.room_history_service import RoomHistoryService
 
 
 from database.session import AsyncSessionLocal
@@ -395,6 +396,7 @@ async def payment_delete_confirm(
 
     async with AsyncSessionLocal() as session:
 
+        # Получаем текущего пользователя
         current_user = await UserRepository.get_by_telegram_id(
             session=session,
             telegram_id=callback.from_user.id,
@@ -407,6 +409,7 @@ async def payment_delete_confirm(
             )
             return
 
+        # Проверяем, что пользователь является участником комнаты
         is_member = await RoomMemberService.is_member(
             session=session,
             room_id=room_id,
@@ -420,6 +423,37 @@ async def payment_delete_confirm(
             )
             return
 
+        # Получаем платёж ДО удаления
+        payment = await RoomPaymentService.get_payment(
+            session=session,
+            payment_id=payment_id,
+        )
+
+        if payment is None:
+            await callback.answer(
+                "❌ Платёж уже удалён.",
+                show_alert=True,
+            )
+            return
+
+        # Проверяем, что платёж относится именно к этой комнате
+        if payment.room_id != room_id:
+            await callback.answer(
+                "❌ Платёж относится к другой комнате.",
+                show_alert=True,
+            )
+            return
+
+        # Сохраняем данные до удаления
+        payment_description = (
+            payment.description
+            if payment.description
+            else "Расход"
+        )
+
+        payment_amount = payment.amount
+
+        # Удаляем платёж
         deleted = await RoomPaymentService.delete_payment(
             session=session,
             payment_id=payment_id,
@@ -427,10 +461,20 @@ async def payment_delete_confirm(
 
         if not deleted:
             await callback.answer(
-                "❌ Платёж уже удалён.",
+                "❌ Не удалось удалить платёж.",
                 show_alert=True,
             )
             return
+
+        # Записываем удаление в историю
+        await RoomHistoryService.create(
+            session=session,
+            room_id=room_id,
+            user_id=current_user.id,
+            action="payment_deleted",
+            description=payment_description,
+            amount=payment_amount,
+        )
 
         # Получаем платежи ИМЕННО этой комнаты
         payments = await RoomPaymentService.get_room_payments(
@@ -807,6 +851,12 @@ async def payment_description(
         )
         return
 
+    if not message.text:
+        await message.answer(
+            "❌ Введите название расхода."
+        )
+        return
+
     description = message.text.strip()
 
     if not description:
@@ -817,6 +867,20 @@ async def payment_description(
         return
 
     async with AsyncSessionLocal() as session:
+
+        # Получаем пользователя, который добавляет платёж
+        current_user = await UserRepository.get_by_telegram_id(
+            session=session,
+            telegram_id=message.from_user.id,
+        )
+
+        if current_user is None:
+            await state.clear()
+
+            await message.answer(
+                "❌ Пользователь не найден."
+            )
+            return
 
         # Проверяем, что плательщик всё ещё участник комнаты
         payer_is_member = await RoomMemberService.is_member(
@@ -841,6 +905,16 @@ async def payment_description(
             user_id=payer_id,
             amount=amount,
             description=description,
+        )
+
+        # Записываем событие в историю
+        await RoomHistoryService.create(
+            session=session,
+            room_id=room_id,
+            user_id=current_user.id,
+            action="payment_added",
+            description=description,
+            amount=amount,
         )
 
         # Получаем обновлённые платежи

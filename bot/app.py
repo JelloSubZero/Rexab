@@ -14,6 +14,8 @@ from handlers.room_receipts import router as room_receipts_router
 from handlers.room_view import router as room_view_router
 from handlers.room_members import router as room_members_router
 from handlers.payment import router as payment_router
+from handlers.room_history import router as room_history_router
+
 
 
 async def main():
@@ -27,6 +29,7 @@ async def main():
     dp = Dispatcher()
 
     # Подключаем роутеры
+    dp.include_router(room_history_router)
     dp.include_router(payment_router)
     dp.include_router(room_members_router)
     dp.include_router(room_invite_router)
