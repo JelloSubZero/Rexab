@@ -59,3 +59,27 @@ class RoomMemberRepository:
         )
 
         return list(result.scalars().all())
+
+    @staticmethod
+    async def remove_member(
+        session: AsyncSession,
+        room_id: int,
+        user_id: int,
+    ) -> bool:
+
+        result = await session.execute(
+            select(RoomMember).where(
+                RoomMember.room_id == room_id,
+                RoomMember.user_id == user_id,
+            )
+        )
+
+        member = result.scalar_one_or_none()
+
+        if member is None:
+            return False
+
+        await session.delete(member)
+        await session.commit()
+
+        return True

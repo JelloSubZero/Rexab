@@ -1,15 +1,17 @@
 from aiogram import Router, F
 from aiogram.types import CallbackQuery
-from services.room_view_service import RoomViewService
+from aiogram.utils.keyboard import InlineKeyboardBuilder
 
 from database.session import AsyncSessionLocal
 
 from keyboards.room_receipts_menu import room_receipts_menu
 
 from services.receipt_service import ReceiptService
-
 from services.room_view_service import RoomViewService
-from keyboards.room_receipts_menu import room_receipts_menu
+from services.room_access_service import RoomAccessService
+
+from repositories.user_repository import UserRepository
+
 
 router = Router()
 
@@ -23,6 +25,31 @@ async def room_receipts(
     )
 
     async with AsyncSessionLocal() as session:
+
+        current_user = await UserRepository.get_by_telegram_id(
+            session=session,
+            telegram_id=callback.from_user.id,
+        )
+
+        if current_user is None:
+            await callback.answer(
+                "❌ Пользователь не найден.",
+                show_alert=True,
+            )
+            return
+
+        has_access = await RoomAccessService.check_access(
+            session=session,
+            room_id=room_id,
+            user_id=current_user.id,
+        )
+
+        if not has_access:
+            await callback.answer(
+                "❌ Вы больше не участник этой комнаты.",
+                show_alert=True,
+            )
+            return
 
         receipts = await ReceiptService.get_receipts(
             session=session,
@@ -69,6 +96,7 @@ async def room_receipts(
 
     await callback.answer()
 
+
 @router.callback_query(F.data.startswith("delete_receipt:"))
 async def delete_receipt(
     callback: CallbackQuery,
@@ -79,12 +107,35 @@ async def delete_receipt(
 
     async with AsyncSessionLocal() as session:
 
+        current_user = await UserRepository.get_by_telegram_id(
+            session=session,
+            telegram_id=callback.from_user.id,
+        )
+
+        if current_user is None:
+            await callback.answer(
+                "❌ Пользователь не найден.",
+                show_alert=True,
+            )
+            return
+
+        has_access = await RoomAccessService.check_access(
+            session=session,
+            room_id=room_id,
+            user_id=current_user.id,
+        )
+
+        if not has_access:
+            await callback.answer(
+                "❌ Вы больше не участник этой комнаты.",
+                show_alert=True,
+            )
+            return
+
         receipts = await ReceiptService.get_receipts(
             session=session,
             room_id=room_id,
         )
-
-    from aiogram.utils.keyboard import InlineKeyboardBuilder
 
     builder = InlineKeyboardBuilder()
 
@@ -133,7 +184,6 @@ async def delete_receipt_confirm(
         )
 
         if receipt is None:
-
             await callback.answer(
                 "❌ Чек не найден.",
                 show_alert=True,
@@ -141,6 +191,31 @@ async def delete_receipt_confirm(
             return
 
         room_id = receipt.room_id
+
+        current_user = await UserRepository.get_by_telegram_id(
+            session=session,
+            telegram_id=callback.from_user.id,
+        )
+
+        if current_user is None:
+            await callback.answer(
+                "❌ Пользователь не найден.",
+                show_alert=True,
+            )
+            return
+
+        has_access = await RoomAccessService.check_access(
+            session=session,
+            room_id=room_id,
+            user_id=current_user.id,
+        )
+
+        if not has_access:
+            await callback.answer(
+                "❌ Вы больше не участник этой комнаты.",
+                show_alert=True,
+            )
+            return
 
         await ReceiptService.delete_receipt(
             session=session,

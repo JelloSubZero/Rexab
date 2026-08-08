@@ -5,6 +5,10 @@ from database.session import AsyncSessionLocal
 
 from services.room_service import RoomService
 from services.qr_service import QRService
+from services.room_access_service import RoomAccessService
+
+from repositories.user_repository import UserRepository
+
 
 router = Router()
 
@@ -19,19 +23,42 @@ async def room_invite(
 
     async with AsyncSessionLocal() as session:
 
+        current_user = await UserRepository.get_by_telegram_id(
+            session=session,
+            telegram_id=callback.from_user.id,
+        )
+
+        if current_user is None:
+            await callback.answer(
+                "❌ Пользователь не найден.",
+                show_alert=True,
+            )
+            return
+
+        has_access = await RoomAccessService.check_access(
+            session=session,
+            room_id=room_id,
+            user_id=current_user.id,
+        )
+
+        if not has_access:
+            await callback.answer(
+                "❌ Вы больше не участник этой комнаты.",
+                show_alert=True,
+            )
+            return
+
         room = await RoomService.get_by_id(
             session=session,
             room_id=room_id,
         )
 
-    if room is None:
-
-        await callback.answer(
-            "Комната не найдена.",
-            show_alert=True,
-        )
-
-        return
+        if room is None:
+            await callback.answer(
+                "❌ Комната не найдена.",
+                show_alert=True,
+            )
+            return
 
     qr_path = QRService.generate(
         room.code,

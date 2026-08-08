@@ -4,6 +4,10 @@ from aiogram.types import CallbackQuery
 from database.session import AsyncSessionLocal
 
 from services.split_bill_service import SplitBillService
+from services.room_access_service import RoomAccessService
+
+from repositories.user_repository import UserRepository
+
 
 router = Router()
 
@@ -17,6 +21,31 @@ async def split_bill(
     )
 
     async with AsyncSessionLocal() as session:
+
+        current_user = await UserRepository.get_by_telegram_id(
+            session=session,
+            telegram_id=callback.from_user.id,
+        )
+
+        if current_user is None:
+            await callback.answer(
+                "❌ Пользователь не найден.",
+                show_alert=True,
+            )
+            return
+
+        has_access = await RoomAccessService.check_access(
+            session=session,
+            room_id=room_id,
+            user_id=current_user.id,
+        )
+
+        if not has_access:
+            await callback.answer(
+                "❌ Вы больше не участник этой комнаты.",
+                show_alert=True,
+            )
+            return
 
         data = await SplitBillService.calculate(
             session=session,

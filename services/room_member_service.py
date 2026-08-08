@@ -52,3 +52,15 @@ class RoomMemberService:
             room_id=room_id,
             user_id=user_id,
         )
+
+    @staticmethod
+    async def remove_member(
+        session: AsyncSession,
+        room_id: int,
+        user_id: int,
+    ):
+        return await RoomMemberRepository.remove_member(
+            session=session,
+            room_id=room_id,
+            user_id=user_id,
+        )
