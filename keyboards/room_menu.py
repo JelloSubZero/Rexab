@@ -26,6 +26,11 @@ def room_menu(room_id: int) -> InlineKeyboardMarkup:
         callback_data=f"room_split:{room_id}",
     )
 
-    builder.adjust(2, 2)
+    builder.button(
+    text="💳 Платежи",
+    callback_data=f"payment_manage:{room_id}",
+    )
+
+    builder.adjust(2, 2, 1)
 
     return builder.as_markup()

@@ -150,3 +150,39 @@ class RoomView(Base):
 
     room = relationship("Room")
     user = relationship("User")
+
+
+class RoomPayment(Base):
+    __tablename__ = "room_payments"
+
+    id: Mapped[int] = mapped_column(
+        primary_key=True,
+    )
+
+    room_id: Mapped[int] = mapped_column(
+        ForeignKey("rooms.id"),
+        nullable=False,
+    )
+
+    description: Mapped[str | None] = mapped_column(
+        String(255),
+        nullable=True,
+    )
+
+    user_id: Mapped[int] = mapped_column(
+        ForeignKey("users.id"),
+        nullable=False,
+    )
+
+    amount: Mapped[float] = mapped_column(
+        Float,
+        nullable=False,
+    )
+
+    created_at: Mapped[datetime] = mapped_column(
+        DateTime,
+        default=datetime.utcnow,
+    )
+
+    room = relationship("Room")
+    user = relationship("User")

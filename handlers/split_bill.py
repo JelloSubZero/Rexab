@@ -3,6 +3,8 @@ from aiogram.types import CallbackQuery
 
 from database.session import AsyncSessionLocal
 
+from keyboards.payment_menu import payment_menu
+
 from services.split_bill_service import SplitBillService
 from services.room_access_service import RoomAccessService
 
@@ -52,18 +54,7 @@ async def split_bill(
             room_id=room_id,
         )
 
-    members_text = ""
-
-    for member in data["members"]:
-
-        name = member.user.first_name
-
-        members_text += (
-            f"• {name}: "
-            f"<b>{data['per_person']:.2f} zł</b>\n"
-        )
-
-    await callback.message.answer(
+    await callback.message.edit_text(
         f"""
 💸 <b>Разделение счета</b>
 
@@ -73,11 +64,18 @@ async def split_bill(
 👥 Участников:
 <b>{data['count']}</b>
 
+💰 На человека:
+<b>{data['per_person']:.2f} zł</b>
+
 ────────────────
 
-{members_text}
+💳 <b>Кто оплатил счёт?</b>
 """,
         parse_mode="HTML",
+        reply_markup=payment_menu(
+            room_id=room_id,
+            members=data["members"],
+        ),
     )
 
     await callback.answer()
