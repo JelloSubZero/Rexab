@@ -224,3 +224,59 @@ class RoomHistory(Base):
 
     room = relationship("Room")
     user = relationship("User")
+
+class RoomSettlement(Base):
+    __tablename__ = "room_settlements"
+
+    id: Mapped[int] = mapped_column(
+        primary_key=True,
+    )
+
+    room_id: Mapped[int] = mapped_column(
+        ForeignKey("rooms.id"),
+        nullable=False,
+    )
+
+    from_user_id: Mapped[int] = mapped_column(
+        ForeignKey("users.id"),
+        nullable=False,
+    )
+
+    to_user_id: Mapped[int] = mapped_column(
+        ForeignKey("users.id"),
+        nullable=False,
+    )
+
+    amount: Mapped[float] = mapped_column(
+        Float,
+        nullable=False,
+    )
+
+    status: Mapped[str] = mapped_column(
+        String(20),
+        default="pending",
+        nullable=False,
+    )
+
+    created_at: Mapped[datetime] = mapped_column(
+        DateTime,
+        default=datetime.utcnow,
+        nullable=False,
+    )
+
+    confirmed_at: Mapped[datetime | None] = mapped_column(
+        DateTime,
+        nullable=True,
+    )
+
+    room = relationship("Room")
+
+    from_user = relationship(
+        "User",
+        foreign_keys=[from_user_id],
+    )
+
+    to_user = relationship(
+        "User",
+        foreign_keys=[to_user_id],
+    )

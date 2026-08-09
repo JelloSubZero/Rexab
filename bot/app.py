@@ -16,7 +16,10 @@ from handlers.room_members import router as room_members_router
 from handlers.payment import router as payment_router
 from handlers.room_history import router as room_history_router
 from handlers.debt import router as debt_router
-
+from handlers.settlement import router as settlement_router
+from handlers.settlement_history import (
+    router as settlement_history_router,
+)
 
 
 async def main():
@@ -30,6 +33,8 @@ async def main():
     dp = Dispatcher()
 
     # Подключаем роутеры
+    dp.include_router(settlement_history_router)
+    dp.include_router(settlement_router)
     dp.include_router(debt_router)
     dp.include_router(room_history_router)
     dp.include_router(payment_router)

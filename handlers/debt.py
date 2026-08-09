@@ -1,7 +1,9 @@
 from aiogram import Router, F
 from aiogram.types import CallbackQuery
+from keyboards.debt_optimize_menu import debt_optimize_menu
 
 from database.session import AsyncSessionLocal
+from repositories.room_settlement_repository import RoomSettlementRepository
 
 from repositories.user_repository import UserRepository
 from keyboards.debt_optimize_menu import debt_optimize_menu
@@ -10,6 +12,7 @@ from services.room_access_service import RoomAccessService
 from services.room_member_service import RoomMemberService
 from services.room_payment_service import RoomPaymentService
 from services.debt_service import DebtService
+from services.settlement_service import SettlementService
 
 from keyboards.debt_menu import debt_menu
 
@@ -68,10 +71,17 @@ async def debt_calculate(
             room_id=room_id,
         )
 
-        # Полный расчёт
+        # Получаем подтверждённые погашения
+        settlements = await SettlementService.get_confirmed_for_room(
+            session=session,
+            room_id=room_id,
+        )
+
+        # Полный расчёт с учётом погашений
         details = DebtService.calculate_details(
             members=members,
             payments=payments,
+            settlements=settlements,
         )
 
         # Получаем пользователей
@@ -254,10 +264,17 @@ async def debt_optimize(
             room_id=room_id,
         )
 
-        # Получаем оптимизированные переводы
+        # Получаем подтверждённые погашения
+        settlements = await SettlementService.get_confirmed_for_room(
+            session=session,
+            room_id=room_id,
+        )
+
+        # Рассчитываем долги с учётом погашений
         transfers = DebtService.calculate(
             members=members,
             payments=payments,
+            settlements=settlements,
         )
 
         # Получаем пользователей
@@ -331,11 +348,13 @@ async def debt_optimize(
         )
 
     await callback.message.edit_text(
-        text,
-        parse_mode="HTML",
-        reply_markup=debt_optimize_menu(
-            room_id=room_id,
-        ),
+    text,
+    parse_mode="HTML",
+    reply_markup=debt_optimize_menu(
+        room_id=room_id,
+        transfers=transfers,
+    ),
+
     )
 
     await callback.answer()
