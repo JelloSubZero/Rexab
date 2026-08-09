@@ -1,4 +1,4 @@
-from aiogram import Router, F
+from aiogram import Router, F, Bot
 from aiogram.types import CallbackQuery, Message
 from aiogram.fsm.context import FSMContext
 from aiogram.utils.keyboard import InlineKeyboardBuilder
@@ -6,6 +6,8 @@ from keyboards.debt_result_menu import debt_result_menu
 from keyboards.payment_delete_menu import payment_delete_menu
 from services.room_member_service import RoomMemberService
 from services.room_history_service import RoomHistoryService
+from services.notification_service import NotificationService
+
 
 
 from database.session import AsyncSessionLocal
@@ -388,6 +390,7 @@ async def payment_delete(
 )
 async def payment_delete_confirm(
     callback: CallbackQuery,
+    bot: Bot,
 ):
     _, payment_id_str, room_id_str = callback.data.split(":")
 
@@ -396,7 +399,10 @@ async def payment_delete_confirm(
 
     async with AsyncSessionLocal() as session:
 
-        # Получаем текущего пользователя
+        # --------------------------------
+        # ТЕКУЩИЙ ПОЛЬЗОВАТЕЛЬ
+        # --------------------------------
+
         current_user = await UserRepository.get_by_telegram_id(
             session=session,
             telegram_id=callback.from_user.id,
@@ -409,7 +415,10 @@ async def payment_delete_confirm(
             )
             return
 
-        # Проверяем, что пользователь является участником комнаты
+        # --------------------------------
+        # ПРОВЕРКА УЧАСТИЯ
+        # --------------------------------
+
         is_member = await RoomMemberService.is_member(
             session=session,
             room_id=room_id,
@@ -423,7 +432,10 @@ async def payment_delete_confirm(
             )
             return
 
-        # Получаем платёж ДО удаления
+        # --------------------------------
+        # ПОЛУЧАЕМ ПЛАТЁЖ ДО УДАЛЕНИЯ
+        # --------------------------------
+
         payment = await RoomPaymentService.get_payment(
             session=session,
             payment_id=payment_id,
@@ -436,7 +448,10 @@ async def payment_delete_confirm(
             )
             return
 
-        # Проверяем, что платёж относится именно к этой комнате
+        # --------------------------------
+        # ПРОВЕРКА КОМНАТЫ
+        # --------------------------------
+
         if payment.room_id != room_id:
             await callback.answer(
                 "❌ Платёж относится к другой комнате.",
@@ -444,7 +459,11 @@ async def payment_delete_confirm(
             )
             return
 
-        # Сохраняем данные до удаления
+        # --------------------------------
+        # СОХРАНЯЕМ ДАННЫЕ ПЛАТЕЖА
+        # ДО УДАЛЕНИЯ
+        # --------------------------------
+
         payment_description = (
             payment.description
             if payment.description
@@ -453,7 +472,20 @@ async def payment_delete_confirm(
 
         payment_amount = payment.amount
 
-        # Удаляем платёж
+        # --------------------------------
+        # ПОЛУЧАЕМ УЧАСТНИКОВ
+        # ДО УДАЛЕНИЯ
+        # --------------------------------
+
+        members = await RoomMemberService.get_members(
+            session=session,
+            room_id=room_id,
+        )
+
+        # --------------------------------
+        # УДАЛЯЕМ ПЛАТЁЖ
+        # --------------------------------
+
         deleted = await RoomPaymentService.delete_payment(
             session=session,
             payment_id=payment_id,
@@ -466,7 +498,10 @@ async def payment_delete_confirm(
             )
             return
 
-        # Записываем удаление в историю
+        # --------------------------------
+        # ЗАПИСЫВАЕМ В ИСТОРИЮ
+        # --------------------------------
+
         await RoomHistoryService.create(
             session=session,
             room_id=room_id,
@@ -476,13 +511,70 @@ async def payment_delete_confirm(
             amount=payment_amount,
         )
 
-        # Получаем платежи ИМЕННО этой комнаты
+        # --------------------------------
+        # ПОЛУЧАЕМ ОБНОВЛЁННЫЕ ПЛАТЕЖИ
+        # --------------------------------
+
         payments = await RoomPaymentService.get_room_payments(
             session=session,
             room_id=room_id,
         )
 
-    # Формируем обновлённый список
+        # --------------------------------
+        # ПЕРЕСЧИТЫВАЕМ ДОЛГИ
+        # --------------------------------
+
+        details = DebtService.calculate_details(
+            members=members,
+            payments=payments,
+        )
+
+        balances = details["balances"]
+        share = details["share"]
+
+        # --------------------------------
+        # КТО УДАЛИЛ ПЛАТЁЖ
+        # --------------------------------
+
+        deleted_by_name = (
+            current_user.first_name
+            or current_user.username
+            or "Пользователь"
+        )
+
+        # --------------------------------
+        # ПЕРСОНАЛЬНЫЕ УВЕДОМЛЕНИЯ
+        # --------------------------------
+
+        for member in members:
+
+            user = await UserRepository.get_by_id(
+                session=session,
+                user_id=member.user_id,
+            )
+
+            if user is None:
+                continue
+
+            balance = balances.get(
+                user.id,
+                0,
+            )
+
+            await NotificationService.notify_debt_changed_after_delete(
+                bot=bot,
+                telegram_id=user.telegram_id,
+                user_name=deleted_by_name,
+                description=payment_description,
+                amount=float(payment_amount),
+                share=float(share),
+                balance=float(balance),
+            )
+
+    # --------------------------------
+    # ФОРМИРУЕМ ОБНОВЛЁННЫЙ СПИСОК
+    # --------------------------------
+
     if not payments:
 
         text = (
@@ -836,12 +928,17 @@ async def payment_amount(
 async def payment_description(
     message: Message,
     state: FSMContext,
+    bot: Bot,
 ):
     data = await state.get_data()
 
     room_id = data.get("room_id")
     payer_id = data.get("payer_id")
     amount = data.get("amount")
+
+    # --------------------------------
+    # ПРОВЕРКА СЕССИИ
+    # --------------------------------
 
     if not room_id or not payer_id or amount is None:
         await state.clear()
@@ -850,6 +947,10 @@ async def payment_description(
             "❌ Сессия добавления платежа устарела."
         )
         return
+
+    # --------------------------------
+    # ПРОВЕРКА ТЕКСТА
+    # --------------------------------
 
     if not message.text:
         await message.answer(
@@ -868,7 +969,10 @@ async def payment_description(
 
     async with AsyncSessionLocal() as session:
 
-        # Получаем пользователя, который добавляет платёж
+        # --------------------------------
+        # ТЕКУЩИЙ ПОЛЬЗОВАТЕЛЬ
+        # --------------------------------
+
         current_user = await UserRepository.get_by_telegram_id(
             session=session,
             telegram_id=message.from_user.id,
@@ -882,7 +986,10 @@ async def payment_description(
             )
             return
 
-        # Проверяем, что плательщик всё ещё участник комнаты
+        # --------------------------------
+        # ПРОВЕРЯЕМ ПЛАТЕЛЬЩИКА
+        # --------------------------------
+
         payer_is_member = await RoomMemberService.is_member(
             session=session,
             room_id=room_id,
@@ -898,7 +1005,10 @@ async def payment_description(
             )
             return
 
-        # Создаём платёж
+        # --------------------------------
+        # СОЗДАЁМ ПЛАТЁЖ
+        # --------------------------------
+
         await RoomPaymentService.create_payment(
             session=session,
             room_id=room_id,
@@ -907,7 +1017,34 @@ async def payment_description(
             description=description,
         )
 
-        # Записываем событие в историю
+        # --------------------------------
+        # ПОЛУЧАЕМ УЧАСТНИКОВ
+        # --------------------------------
+
+        members = await RoomMemberService.get_members(
+            session=session,
+            room_id=room_id,
+        )
+
+        # --------------------------------
+        # ПОЛУЧАЕМ ПЛАТЕЛЬЩИКА
+        # --------------------------------
+
+        payer = await UserRepository.get_by_id(
+            session=session,
+            user_id=payer_id,
+        )
+
+        payer_name = (
+            payer.first_name
+            if payer
+            else "Пользователь"
+        )
+
+        # --------------------------------
+        # ЗАПИСЫВАЕМ В ИСТОРИЮ
+        # --------------------------------
+
         await RoomHistoryService.create(
             session=session,
             room_id=room_id,
@@ -917,11 +1054,59 @@ async def payment_description(
             amount=amount,
         )
 
-        # Получаем обновлённые платежи
+        # --------------------------------
+        # ПОЛУЧАЕМ ОБНОВЛЁННЫЕ ПЛАТЕЖИ
+        # --------------------------------
+
         payments = await RoomPaymentService.get_room_payments(
             session=session,
             room_id=room_id,
         )
+
+        # --------------------------------
+        # РАССЧИТЫВАЕМ ДОЛГИ
+        # --------------------------------
+
+        details = DebtService.calculate_details(
+            members=members,
+            payments=payments,
+        )
+
+        balances = details["balances"]
+        share = details["share"]
+
+        # --------------------------------
+        # ПЕРСОНАЛЬНЫЕ УВЕДОМЛЕНИЯ
+        # --------------------------------
+
+        for member in members:
+
+            user = await UserRepository.get_by_id(
+                session=session,
+                user_id=member.user_id,
+            )
+
+            if user is None:
+                continue
+
+            balance = balances.get(
+                user.id,
+                0,
+            )
+
+            await NotificationService.notify_debt_changed(
+                bot=bot,
+                telegram_id=user.telegram_id,
+                payer_name=payer_name,
+                description=description,
+                amount=amount,
+                share=float(share),
+                balance=float(balance),
+            )
+
+    # --------------------------------
+    # ОЧИЩАЕМ FSM
+    # --------------------------------
 
     await state.clear()
 

@@ -1,4 +1,4 @@
-from aiogram import Router, F
+from aiogram import Router, F, Bot
 from aiogram.types import CallbackQuery
 
 from database.session import AsyncSessionLocal
@@ -8,6 +8,7 @@ from keyboards.room_members_menu import room_members_menu
 from services.room_service import RoomService
 from services.room_member_service import RoomMemberService
 from services.room_access_service import RoomAccessService
+from services.notification_service import NotificationService
 
 from repositories.user_repository import UserRepository
 
@@ -113,6 +114,7 @@ async def room_members(
 @router.callback_query(F.data.startswith("remove_member:"))
 async def remove_member(
     callback: CallbackQuery,
+    bot: Bot,
 ):
     _, room_id_str, user_id_str = callback.data.split(":")
 
@@ -159,6 +161,61 @@ async def remove_member(
             )
             return
 
+        # --------------------------------
+        # ПОЛУЧАЕМ УДАЛЯЕМОГО ПОЛЬЗОВАТЕЛЯ
+        # ДО УДАЛЕНИЯ
+        # --------------------------------
+
+        removed_user = await UserRepository.get_by_id(
+            session=session,
+            user_id=user_id,
+        )
+
+        if removed_user is None:
+            await callback.answer(
+                "❌ Пользователь не найден.",
+                show_alert=True,
+            )
+            return
+
+        removed_user_name = (
+            removed_user.first_name
+            or removed_user.username
+            or "Пользователь"
+        )
+
+        # --------------------------------
+        # ПОЛУЧАЕМ УЧАСТНИКОВ
+        # ДО УДАЛЕНИЯ
+        # --------------------------------
+
+        members_before = await RoomMemberService.get_members(
+            session=session,
+            room_id=room_id,
+        )
+
+        telegram_ids = []
+
+        for member in members_before:
+
+            # Самому удалённому уведомление не отправляем
+            if member.user_id == user_id:
+                continue
+
+            member_user = await UserRepository.get_by_id(
+                session=session,
+                user_id=member.user_id,
+            )
+
+            if member_user:
+                telegram_ids.append(
+                    member_user.telegram_id
+                )
+
+        # --------------------------------
+        # УДАЛЯЕМ УЧАСТНИКА
+        # --------------------------------
+
         removed = await RoomMemberService.remove_member(
             session=session,
             room_id=room_id,
@@ -172,10 +229,28 @@ async def remove_member(
             )
             return
 
+        # --------------------------------
+        # УВЕДОМЛЕНИЕ
+        # --------------------------------
+
+        await NotificationService.notify_member_removed(
+            bot=bot,
+            telegram_ids=telegram_ids,
+            member_name=removed_user_name,
+        )
+
+        # --------------------------------
+        # ПОЛУЧАЕМ ОБНОВЛЁННЫЙ СПИСОК
+        # --------------------------------
+
         members = await RoomMemberService.get_members(
             session=session,
             room_id=room_id,
         )
+
+    # --------------------------------
+    # ФОРМИРУЕМ СПИСОК
+    # --------------------------------
 
     members_text = ""
 
