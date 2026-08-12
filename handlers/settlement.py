@@ -1,5 +1,7 @@
 from aiogram import Router, F
 from aiogram.types import CallbackQuery
+from services.room_message_service import RoomMessageService
+from services.room_view_service import RoomViewService
 
 from database.session import AsyncSessionLocal
 
@@ -11,7 +13,7 @@ from services.settlement_service import SettlementService
 from services.notification_service import NotificationService
 from services.room_payment_service import RoomPaymentService
 from services.debt_service import DebtService
-
+from services.room_service import RoomService
 from keyboards.settlement_menu import settlement_menu
 
 
@@ -255,7 +257,7 @@ async def settlement_create(
 
         try:
 
-            await bot.send_message(
+            sent_message = await bot.send_message(
                 chat_id=receiver.telegram_id,
                 text=(
                     "💰 <b>Ожидается погашение</b>\n\n"
@@ -270,6 +272,13 @@ async def settlement_create(
                     room_id=room_id,
                     settlement_id=settlement.id,
                 ),
+            )
+
+            await RoomMessageService.save(
+                session=session,
+                room_id=room_id,
+                chat_id=receiver.telegram_id,
+                message_id=sent_message.message_id,
             )
 
         except Exception as e:
@@ -287,7 +296,7 @@ async def settlement_create(
 
             try:
 
-                await bot.send_message(
+                sent_message = await bot.send_message(
                     chat_id=debtor.telegram_id,
                     text=(
                         "💸 <b>Ожидается подтверждение</b>\n\n"
@@ -298,6 +307,13 @@ async def settlement_create(
                         "погашение."
                     ),
                     parse_mode="HTML",
+                )
+
+                await RoomMessageService.save(
+                    session=session,
+                    room_id=room_id,
+                    chat_id=debtor.telegram_id,
+                    message_id=sent_message.message_id,
                 )
 
             except Exception as e:
@@ -478,7 +494,7 @@ async def settlement_confirm(
         # ----------------------------------------------------
 
         try:
-            await bot.send_message(
+            sent_message = await bot.send_message(
                 chat_id=debtor.telegram_id,
                 text=(
                     "✅ <b>Погашение подтверждено</b>\n\n"
@@ -489,6 +505,13 @@ async def settlement_confirm(
                     "💸 Этот долг отмечен как погашенный."
                 ),
                 parse_mode="HTML",
+            )
+
+            await RoomMessageService.save(
+                session=session,
+                room_id=room_id,
+                chat_id=debtor.telegram_id,
+                message_id=sent_message.message_id,
             )
 
         except Exception as e:
@@ -513,6 +536,131 @@ async def settlement_confirm(
             parse_mode="HTML",
         )
 
-        await callback.answer(
-            "✅ Деньги получены."
+          # ----------------------------------------------------
+        # РАССЧИТЫВАЕМ ТЕКУЩИЕ ДОЛГИ
+        # ----------------------------------------------------
+
+        members = await RoomMemberService.get_members(
+            session=session,
+            room_id=room_id,
         )
+
+        payments = await RoomPaymentService.get_room_payments(
+            session=session,
+            room_id=room_id,
+        )
+
+        # ----------------------------------------------------
+        # ПОЛУЧАЕМ ПОДТВЕРЖДЁННЫЕ ПОГАШЕНИЯ
+        # ----------------------------------------------------
+
+        confirmed_settlements = (
+            await SettlementService.get_confirmed_for_room(
+                session=session,
+                room_id=room_id,
+            )
+        )
+
+        # ----------------------------------------------------
+        # РАССЧИТЫВАЕМ ДОЛГИ С УЧЁТОМ ПОГАШЕНИЙ
+        # ----------------------------------------------------
+
+        transfers = DebtService.calculate(
+            members=members,
+            payments=payments,
+            settlements=confirmed_settlements,
+        )
+
+        # ----------------------------------------------------
+        # ЕСЛИ ДОЛГОВ БОЛЬШЕ НЕТ —
+        # КОМНАТА ЗАВЕРШЕНА
+        # ----------------------------------------------------
+
+        if not transfers:
+
+            participants = []
+
+            for member in members:
+
+                user = await UserRepository.get_by_id(
+                    session=session,
+                    user_id=member.user_id,
+                )
+
+                if user is not None:
+                    participants.append(user)
+
+            # --------------------------------
+            # --------------------------------
+            # УДАЛЯЕМ ОСНОВНЫЕ СООБЩЕНИЯ КОМНАТЫ
+            # --------------------------------
+
+            # Получаем все основные сообщения комнаты
+            room_views = await RoomViewService.get_views(
+                session=session,
+                room_id=room_id,
+            )
+
+            # Удаляем основное сообщение комнаты у каждого пользователя
+            for room_view in room_views:
+                try:
+                    await bot.delete_message(
+                        chat_id=room_view.chat_id,
+                        message_id=room_view.message_id,
+                    )
+                except Exception as e:
+                    print(
+                        f"❌ Не удалось удалить RoomView: "
+                        f"chat={room_view.chat_id}, "
+                        f"message={room_view.message_id}: {e}"
+                    )
+
+            # --------------------------------
+            # УДАЛЯЕМ ДОПОЛНИТЕЛЬНЫЕ СООБЩЕНИЯ
+            # --------------------------------
+
+            await RoomMessageService.delete_all(
+                bot=bot,
+                session=session,
+                room_id=room_id,
+            )
+
+            # --------------------------------
+            # УДАЛЯЕМ КОМНАТУ ИЗ БД
+            # --------------------------------
+
+            deleted = await RoomService.delete_room(
+                session=session,
+                room_id=room_id,
+            )
+
+            # --------------------------------
+            # УВЕДОМЛЯЕМ УЧАСТНИКОВ
+            # --------------------------------
+
+            if deleted:
+                for user in participants:
+                    try:
+                        await bot.send_message(
+                            chat_id=user.telegram_id,
+                            text=(
+                                "🏁 <b>Комната завершена</b>\n\n"
+                                "Все долги погашены.\n"
+                                "Комната была автоматически удалена."
+                            ),
+                            parse_mode="HTML",
+                        )
+
+                    except Exception as e:
+                        print(
+                            "❌ Не удалось уведомить "
+                            f"пользователя {user.id}: {e}"
+                        )
+
+                await callback.answer(
+                    "🏁 Все долги погашены. Комната удалена."
+                )
+
+                return
+
+    

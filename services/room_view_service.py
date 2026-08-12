@@ -7,6 +7,10 @@ from services.room_service import RoomService
 from keyboards.room_menu import room_menu
 from aiogram import Bot
 from aiogram.exceptions import TelegramBadRequest
+from keyboards.closed_room_menu import closed_room_menu
+from services.debt_service import DebtService
+from services.settlement_service import SettlementService
+from services.room_payment_service import RoomPaymentService
 
 class RoomViewService:
 
@@ -67,6 +71,7 @@ class RoomViewService:
     async def render(
         session: AsyncSession,
         room_id: int,
+        user_id: int,
     ):
 
         data = await RoomViewService.build(
@@ -75,6 +80,7 @@ class RoomViewService:
         )
 
         room = data["room"]
+        is_owner = room.owner_id == user_id
         total = data["total"] or 0
         members = data["members"]
 
@@ -112,46 +118,190 @@ class RoomViewService:
 
         return {
             "text": text,
-            "reply_markup": room_menu(room.id),
+            "reply_markup": room_menu(
+            room.id,
+            is_owner=is_owner,
+        ),
+        }
+
+
+
+    @staticmethod
+    async def render_closed(
+        session: AsyncSession,
+        room_id: int,
+        user_id: int,
+    ):
+        room = await RoomService.get_by_id(
+            session=session,
+            room_id=room_id,
+        )
+
+        if room is None:
+            return None
+
+        members = await RoomMemberService.get_members(
+            session=session,
+            room_id=room_id,
+        )
+
+        payments = await RoomPaymentService.get_room_payments(
+            session=session,
+            room_id=room_id,
+        )
+
+        confirmed_settlements = (
+            await SettlementService.get_confirmed_for_room(
+                session=session,
+                room_id=room_id,
+            )
+        )
+
+        # Актуальные долги после подтвержденных погашений
+        transfers = DebtService.calculate(
+            members=members,
+            payments=payments,
+            settlements=confirmed_settlements,
+        )
+
+        # Только долги, которые относятся к текущему пользователю
+        user_transfers = [
+            transfer
+            for transfer in transfers
+            if (
+                transfer["from_user_id"] == user_id
+                or transfer["to_user_id"] == user_id
+            )
+        ]
+
+        # Общая сумма всех непогашенных долгов
+        total_debt = sum(
+            float(transfer["amount"])
+            for transfer in transfers
+        )
+
+        debts_text = ""
+
+        for transfer in user_transfers:
+
+            from_member = next(
+                (
+                    member
+                    for member in members
+                    if member.user_id
+                    == transfer["from_user_id"]
+                ),
+                None,
+            )
+
+            to_member = next(
+                (
+                    member
+                    for member in members
+                    if member.user_id
+                    == transfer["to_user_id"]
+                ),
+                None,
+            )
+
+            from_name = (
+                from_member.user.first_name
+                if from_member and from_member.user
+                else "Неизвестный"
+            )
+
+            to_name = (
+                to_member.user.first_name
+                if to_member and to_member.user
+                else "Неизвестный"
+            )
+
+            debts_text += (
+                f"• <b>{from_name}</b> → "
+                f"<b>{to_name}</b>: "
+                f"<b>{float(transfer['amount']):.2f} zł</b>\n"
+            )
+
+        if not debts_text:
+            debts_text = (
+                "🎉 У вас нет непогашенных долгов."
+            )
+
+        # Ожидаемые погашения текущего пользователя
+        pending_for_debtor = (
+            await SettlementService.get_pending_for_debtor(
+                session=session,
+                room_id=room_id,
+                user_id=user_id,
+            )
+        )
+
+        pending_for_receiver = (
+            await SettlementService.get_pending_for_receiver(
+                session=session,
+                room_id=room_id,
+                user_id=user_id,
+            )
+        )
+
+        text = (
+            "🔒 <b>Комната закрыта</b>\n\n"
+            f"💰 Непогашено: "
+            f"<b>{total_debt:.2f} zł</b>\n"
+            f"👥 Участников: <b>{len(members)}</b>\n\n"
+            "👤 <b>Ваши долги</b>\n\n"
+            f"{debts_text}"
+        )
+
+        return {
+            "text": text,
+            "reply_markup": closed_room_menu(
+                room_id=room_id,
+                transfers=user_transfers,
+                current_user_id=user_id,
+                pending_for_debtor=pending_for_debtor,
+                pending_for_receiver=pending_for_receiver,
+            ),
         }
 
     @staticmethod
     async def refresh_room(
-            bot: Bot,
-            session: AsyncSession,
-            room_id: int,
-        ):
+        bot: Bot,
+        session: AsyncSession,
+        room_id: int,
+    ):
+
+        room_views = await RoomViewService.get_views(
+            session=session,
+            room_id=room_id,
+        )
+
+        for room_view in room_views:
 
             view = await RoomViewService.render(
                 session=session,
                 room_id=room_id,
+                user_id=room_view.user_id,
             )
 
-            room_views = await RoomViewService.get_views(
-                session=session,
-                room_id=room_id,
-            )
+            try:
 
-            for room_view in room_views:
+                await bot.edit_message_text(
+                    chat_id=room_view.chat_id,
+                    message_id=room_view.message_id,
+                    text=view["text"],
+                    parse_mode="HTML",
+                    reply_markup=view["reply_markup"],
+                )
 
-                try:
+            except TelegramBadRequest:
+                pass
 
-                    await bot.edit_message_text(
-                        chat_id=room_view.chat_id,
-                        message_id=room_view.message_id,
-                        text=view["text"],
-                        parse_mode="HTML",
-                        reply_markup=view["reply_markup"],
-                    )
+            except Exception as e:
 
-                except TelegramBadRequest:
-                    # Сообщение не изменилось или уже удалено
-                    pass
-
-                except Exception as e:
-                    print(
-                        f"Не удалось обновить комнату: {e}"
-                    )
+                print(
+                    f"Не удалось обновить комнату: {e}"
+                )
 
     @staticmethod
     async def show_room(
@@ -165,6 +315,7 @@ class RoomViewService:
         view = await RoomViewService.render(
             session=session,
             room_id=room_id,
+            user_id=user_id,
         )
 
         msg = await bot.send_message(

@@ -1,6 +1,7 @@
 from repositories.room_repository import RoomRepository
 from utils.code_generator import generate_room_code
 from sqlalchemy.ext.asyncio import AsyncSession
+from repositories.room_repository import RoomRepository
 
 
 class RoomService:
@@ -43,4 +44,15 @@ class RoomService:
         return await RoomRepository.get_by_code(
             session=session,
             code=code,
+        )
+
+    @staticmethod
+    async def delete_room(
+        session: AsyncSession,
+        room_id: int,
+    ) -> bool:
+
+        return await RoomRepository.delete(
+            session=session,
+            room_id=room_id,
         )

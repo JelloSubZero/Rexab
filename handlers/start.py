@@ -109,6 +109,8 @@ async def start(
 
                 await NotificationService.notify_member_joined(
                     bot=bot,
+                    session=session,
+                    room_id=room.id,
                     telegram_ids=telegram_ids,
                     member_name=member_name,
                 )

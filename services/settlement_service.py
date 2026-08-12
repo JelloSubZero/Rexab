@@ -153,4 +153,22 @@ class SettlementService:
             session=session,
             room_id=room_id,
         )
-   
+
+    @staticmethod
+    async def is_room_fully_settled(
+        session: AsyncSession,
+        room_id: int,
+        total_debt: float,
+    ) -> bool:
+
+        settlements = await RoomSettlementRepository.get_confirmed_for_room(
+            session=session,
+            room_id=room_id,
+        )
+
+        confirmed_total = sum(
+            float(item.amount)
+            for item in settlements
+        )
+
+        return confirmed_total >= total_debt - 0.01

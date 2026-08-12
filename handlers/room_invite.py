@@ -6,6 +6,7 @@ from database.session import AsyncSessionLocal
 from services.room_service import RoomService
 from services.qr_service import QRService
 from services.room_access_service import RoomAccessService
+from services.room_message_service import RoomMessageService
 
 from repositories.user_repository import UserRepository
 
@@ -13,10 +14,13 @@ from repositories.user_repository import UserRepository
 router = Router()
 
 
-@router.callback_query(F.data.startswith("room_invite:"))
+@router.callback_query(
+    F.data.startswith("room_invite:")
+)
 async def room_invite(
     callback: CallbackQuery,
 ):
+
     room_id = int(
         callback.data.split(":")[1]
     )
@@ -29,10 +33,12 @@ async def room_invite(
         )
 
         if current_user is None:
+
             await callback.answer(
                 "❌ Пользователь не найден.",
                 show_alert=True,
             )
+
             return
 
         has_access = await RoomAccessService.check_access(
@@ -42,10 +48,12 @@ async def room_invite(
         )
 
         if not has_access:
+
             await callback.answer(
                 "❌ Вы больше не участник этой комнаты.",
                 show_alert=True,
             )
+
             return
 
         room = await RoomService.get_by_id(
@@ -54,30 +62,55 @@ async def room_invite(
         )
 
         if room is None:
+
             await callback.answer(
                 "❌ Комната не найдена.",
                 show_alert=True,
             )
+
             return
 
+        room_code = room.code
+
+    # --------------------------------
+    # ГЕНЕРИРУЕМ QR
+    # --------------------------------
+
     qr_path = QRService.generate(
-        room.code,
+        room_code,
     )
 
     photo = FSInputFile(
         qr_path,
     )
 
-    await callback.message.answer_photo(
+    # --------------------------------
+    # ОТПРАВЛЯЕМ ПРИГЛАШЕНИЕ
+    # --------------------------------
+
+    sent_message = await callback.message.answer_photo(
         photo=photo,
         caption=(
             "📤 <b>Приглашение в комнату</b>\n\n"
             f"🔑 Код комнаты:\n"
-            f"<code>{room.code}</code>\n\n"
+            f"<code>{room_code}</code>\n\n"
             "Отправьте друзьям QR-код "
             "или сообщите код комнаты."
         ),
         parse_mode="HTML",
     )
+
+    # --------------------------------
+    # СОХРАНЯЕМ MESSAGE_ID
+    # --------------------------------
+
+    async with AsyncSessionLocal() as session:
+
+        await RoomMessageService.save(
+            session=session,
+            room_id=room_id,
+            chat_id=sent_message.chat.id,
+            message_id=sent_message.message_id,
+        )
 
     await callback.answer()

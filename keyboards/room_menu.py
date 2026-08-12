@@ -2,7 +2,10 @@ from aiogram.types import InlineKeyboardMarkup
 from aiogram.utils.keyboard import InlineKeyboardBuilder
 
 
-def room_menu(room_id: int) -> InlineKeyboardMarkup:
+def room_menu(
+    room_id: int,
+    is_owner: bool = False,
+) -> InlineKeyboardMarkup:
 
     builder = InlineKeyboardBuilder()
 
@@ -42,9 +45,15 @@ def room_menu(room_id: int) -> InlineKeyboardMarkup:
     )
 
     builder.button(
-    text="💰 История погашений",
-    callback_data=f"settlement_history:{room_id}",
+        text="💰 История погашений",
+        callback_data=f"settlement_history:{room_id}",
     )
+
+    if is_owner:
+        builder.button(
+            text="🔒 Закрыть комнату",
+            callback_data=f"room_close:{room_id}",
+        )
 
     builder.adjust(2, 2, 2, 1)
 

@@ -1,12 +1,18 @@
-from sqlalchemy import select
+from sqlalchemy import select, delete
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from database.models import Room
+from database.models import (
+    Room,
+    Receipt,
+    RoomMember,
+    RoomView,
+    RoomPayment,
+    RoomHistory,
+    RoomSettlement,
+)
 
 
 class RoomRepository:
-
-    
 
     @staticmethod
     async def get_by_code(
@@ -33,6 +39,7 @@ class RoomRepository:
         )
 
         session.add(room)
+
         await session.commit()
         await session.refresh(room)
 
@@ -48,3 +55,67 @@ class RoomRepository:
             Room,
             room_id,
         )
+
+    @staticmethod
+    async def delete(
+        session: AsyncSession,
+        room_id: int,
+    ) -> bool:
+
+        room = await session.get(
+            Room,
+            room_id,
+        )
+
+        if room is None:
+            return False
+
+        # --------------------------------
+        # УДАЛЯЕМ ВСЕ ДАННЫЕ КОМНАТЫ
+        # --------------------------------
+
+        await session.execute(
+            delete(RoomView).where(
+                RoomView.room_id == room_id
+            )
+        )
+
+        await session.execute(
+            delete(RoomSettlement).where(
+                RoomSettlement.room_id == room_id
+            )
+        )
+
+        await session.execute(
+            delete(RoomPayment).where(
+                RoomPayment.room_id == room_id
+            )
+        )
+
+        await session.execute(
+            delete(RoomHistory).where(
+                RoomHistory.room_id == room_id
+            )
+        )
+
+        await session.execute(
+            delete(Receipt).where(
+                Receipt.room_id == room_id
+            )
+        )
+
+        await session.execute(
+            delete(RoomMember).where(
+                RoomMember.room_id == room_id
+            )
+        )
+
+        # --------------------------------
+        # УДАЛЯЕМ САМУ КОМНАТУ
+        # --------------------------------
+
+        await session.delete(room)
+
+        await session.commit()
+
+        return True

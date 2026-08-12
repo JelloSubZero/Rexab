@@ -1,7 +1,9 @@
 from aiogram import Router, F
 from aiogram.types import Message
 from aiogram.fsm.context import FSMContext
+
 from services.room_view_service import RoomViewService
+from services.room_message_service import RoomMessageService
 
 from keyboards.receipt_menu import receipt_menu
 
@@ -14,8 +16,13 @@ from services.ocr.ocr_service import OCRService
 
 from states.receipt_state import ReceiptState
 
+
 router = Router()
 
+
+# ============================================================
+# ЗАГРУЗКА ЧЕКА
+# ============================================================
 
 @router.message(
     ReceiptState.waiting_receipt,
@@ -26,30 +33,59 @@ async def receipt_handler(
     state: FSMContext,
 ):
     try:
+
+        # --------------------------------
+        # ПОЛУЧАЕМ ДАННЫЕ FSM
+        # --------------------------------
+
         data = await state.get_data()
 
         room_id = data.get("room_id")
 
         if room_id is None:
-            await message.answer("❌ Комната не найдена.")
+
+            sent_message = await message.answer(
+                "❌ Комната не найдена."
+            )
+
             return
+
+        # --------------------------------
+        # ПОЛУЧАЕМ ФОТО
+        # --------------------------------
 
         photo = message.photo[-1]
 
-        file = await message.bot.get_file(photo.file_id)
+        file = await message.bot.get_file(
+            photo.file_id
+        )
 
-        file_name = f"{photo.file_unique_id}.jpg"
+        file_name = (
+            f"{photo.file_unique_id}.jpg"
+        )
 
-        destination = RECEIPTS_DIR / file_name
+        destination = (
+            RECEIPTS_DIR / file_name
+        )
 
         await message.bot.download_file(
             file.file_path,
             destination=destination,
         )
 
+        # --------------------------------
         # OCR
+        # --------------------------------
+
         ocr = OCRService()
-        result = ocr.process(str(destination))
+
+        result = ocr.process(
+            str(destination)
+        )
+
+        # --------------------------------
+        # СОХРАНЯЕМ ЧЕК
+        # --------------------------------
 
         async with AsyncSessionLocal() as session:
 
@@ -60,7 +96,10 @@ async def receipt_handler(
                 total=result.receipt.total,
             )
 
-        # Если сумму определить не удалось
+        # --------------------------------
+        # ЕСЛИ СУММУ ОПРЕДЕЛИТЬ НЕ УДАЛОСЬ
+        # --------------------------------
+
         if result.receipt.total is None:
 
             await state.update_data(
@@ -69,25 +108,44 @@ async def receipt_handler(
             )
 
             await state.set_state(
-                ReceiptState.waiting_total,
+                ReceiptState.waiting_total
             )
 
-            await message.answer(
-                "❌ Не удалось определить сумму чека.\n\n"
-                "Введите общую сумму вручную.\n\n"
-                "Например:\n"
-                "<code>123.45</code>",
-                parse_mode="HTML",
-            )
+            async with AsyncSessionLocal() as session:
+
+                sent_message = await message.answer(
+                    "❌ Не удалось определить сумму чека.\n\n"
+                    "Введите общую сумму вручную.\n\n"
+                    "Например:\n"
+                    "<code>123.45</code>",
+                    parse_mode="HTML",
+                )
+
+                await RoomMessageService.save(
+                    session=session,
+                    room_id=room_id,
+                    chat_id=sent_message.chat.id,
+                    message_id=sent_message.message_id,
+                )
 
             return
 
+        # --------------------------------
+        # ПОЛУЧАЕМ ОБЩУЮ СУММУ КОМНАТЫ
+        # --------------------------------
+
         async with AsyncSessionLocal() as session:
 
-            room_total = await ReceiptService.get_room_total(
-                session=session,
-                room_id=room_id,
+            room_total = (
+                await ReceiptService.get_room_total(
+                    session=session,
+                    room_id=room_id,
+                )
             )
+
+            # --------------------------------
+            # ОБНОВЛЯЕМ ОСНОВНОЙ ЭКРАН КОМНАТЫ
+            # --------------------------------
 
             await RoomViewService.refresh_room(
                 bot=message.bot,
@@ -95,22 +153,54 @@ async def receipt_handler(
                 room_id=room_id,
             )
 
-        await state.set_state(
-    ReceiptState.waiting_receipt,
-)
+            # --------------------------------
+            # СООБЩЕНИЕ О ДОБАВЛЕНИИ ЧЕКА
+            # --------------------------------
 
-        await message.answer(
-    f"✅ Чек добавлен.\n\n"
-    f"🧾 Сумма этого чека: <b>{result.receipt.total:.2f} zł</b>\n"
-    f"💰 Общая сумма комнаты: <b>{room_total:.2f} zł</b>",
-    parse_mode="HTML",
-    reply_markup=receipt_menu(room_id),
-)
+            sent_message = await message.answer(
+                "✅ <b>Чек добавлен.</b>\n\n"
+                f"🧾 Сумма этого чека: "
+                f"<b>{result.receipt.total:.2f} zł</b>\n"
+                f"💰 Общая сумма комнаты: "
+                f"<b>{room_total:.2f} zł</b>",
+                parse_mode="HTML",
+                reply_markup=receipt_menu(room_id),
+            )
+
+            # --------------------------------
+            # СОХРАНЯЕМ MESSAGE_ID
+            # --------------------------------
+
+            await RoomMessageService.save(
+                session=session,
+                room_id=room_id,
+                chat_id=sent_message.chat.id,
+                message_id=sent_message.message_id,
+            )
+
+        # --------------------------------
+        # СЛЕДУЮЩИЙ ЧЕК
+        # --------------------------------
+
+        await state.set_state(
+            ReceiptState.waiting_receipt
+        )
 
     except Exception as e:
-        print(e)
-        await message.answer(f"❌ Ошибка: {e}")
 
+        print(e)
+
+        # Ошибка также относится к текущему процессу комнаты,
+        # но room_id может быть недоступен, поэтому просто
+        # отправляем сообщение без сохранения.
+        await message.answer(
+            f"❌ Ошибка: {e}"
+        )
+
+
+# ============================================================
+# РУЧНОЙ ВВОД СУММЫ ЧЕКА
+# ============================================================
 
 @router.message(
     ReceiptState.waiting_total,
@@ -121,6 +211,11 @@ async def manual_total(
     state: FSMContext,
 ):
     try:
+
+        # --------------------------------
+        # ПОЛУЧАЕМ СУММУ
+        # --------------------------------
+
         total = float(
             message.text.replace(",", ".")
         )
@@ -133,16 +228,32 @@ async def manual_total(
             "<code>123.45</code>",
             parse_mode="HTML",
         )
+
         return
+
+    # --------------------------------
+    # ПОЛУЧАЕМ ДАННЫЕ FSM
+    # --------------------------------
 
     data = await state.get_data()
 
-    receipt_id = data.get("receipt_id")
+    receipt_id = data.get(
+        "receipt_id"
+    )
 
     if receipt_id is None:
-        await message.answer("❌ Чек не найден.")
+
+        await message.answer(
+            "❌ Чек не найден."
+        )
+
         await state.clear()
+
         return
+
+    # --------------------------------
+    # ОБНОВЛЯЕМ ЧЕК
+    # --------------------------------
 
     async with AsyncSessionLocal() as session:
 
@@ -152,10 +263,16 @@ async def manual_total(
             total=total,
         )
 
-        room_total = await ReceiptService.get_room_total(
-            session=session,
-            room_id=receipt.room_id,
+        room_total = (
+            await ReceiptService.get_room_total(
+                session=session,
+                room_id=receipt.room_id,
+            )
         )
+
+        # --------------------------------
+        # ОБНОВЛЯЕМ ОСНОВНОЙ ЭКРАН КОМНАТЫ
+        # --------------------------------
 
         await RoomViewService.refresh_room(
             bot=message.bot,
@@ -163,19 +280,45 @@ async def manual_total(
             room_id=receipt.room_id,
         )
 
+        # --------------------------------
+        # СООБЩЕНИЕ "СУММА СОХРАНЕНА"
+        # --------------------------------
+
+        sent_message = await message.answer(
+            "✅ <b>Сумма сохранена.</b>\n\n"
+            f"🧾 Сумма этого чека: "
+            f"<b>{total:.2f} zł</b>\n"
+            f"💰 Общая сумма комнаты: "
+            f"<b>{room_total:.2f} zł</b>",
+            parse_mode="HTML",
+            reply_markup=receipt_menu(
+                receipt.room_id
+            ),
+        )
+
+        # --------------------------------
+        # СОХРАНЯЕМ MESSAGE_ID
+        # --------------------------------
+
+        await RoomMessageService.save(
+            session=session,
+            room_id=receipt.room_id,
+            chat_id=sent_message.chat.id,
+            message_id=sent_message.message_id,
+        )
+
+    # --------------------------------
+    # СОХРАНЯЕМ ROOM_ID В FSM
+    # --------------------------------
+
     await state.update_data(
-    room_id=receipt.room_id,
+        room_id=receipt.room_id,
     )
+
+    # --------------------------------
+    # СНОВА ЖДЁМ ФОТО ЧЕКА
+    # --------------------------------
 
     await state.set_state(
-        ReceiptState.waiting_receipt,
+        ReceiptState.waiting_receipt
     )
-
-
-    await message.answer(
-    f"✅ Сумма сохранена.\n\n"
-    f"🧾 Сумма этого чека: <b>{total:.2f} zł</b>\n"
-    f"💰 Общая сумма комнаты: <b>{room_total:.2f} zł</b>",
-    parse_mode="HTML",
-    reply_markup=receipt_menu(receipt.room_id),
-)

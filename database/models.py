@@ -280,3 +280,26 @@ class RoomSettlement(Base):
         "User",
         foreign_keys=[to_user_id],
     )
+
+class RoomMessage(Base):
+    __tablename__ = "room_messages"
+
+    id: Mapped[int] = mapped_column(
+        primary_key=True,
+    )
+
+    room_id: Mapped[int] = mapped_column(
+        ForeignKey("rooms.id"),
+        nullable=False,
+    )
+
+    chat_id: Mapped[int] = mapped_column(
+        BigInteger,
+        nullable=False,
+    )
+
+    message_id: Mapped[int] = mapped_column(
+        nullable=False,
+    )
+
+    room = relationship("Room")

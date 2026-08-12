@@ -11,7 +11,9 @@ from repositories.user_repository import UserRepository
 router = Router()
 
 
-@router.callback_query(F.data.startswith("room_view:"))
+@router.callback_query(
+    F.data.startswith("room_view:")
+)
 async def room_view(
     callback: CallbackQuery,
 ):
@@ -49,12 +51,22 @@ async def room_view(
         view = await RoomViewService.render(
             session=session,
             room_id=room_id,
+            user_id=user.id,
         )
 
-    await callback.message.edit_text(
-        view["text"],
-        parse_mode="HTML",
-        reply_markup=view["reply_markup"],
-    )
+        await callback.message.edit_text(
+            view["text"],
+            parse_mode="HTML",
+            reply_markup=view["reply_markup"],
+        )
+
+        # Обновляем актуальный RoomView
+        await RoomViewService.save_message(
+            session=session,
+            room_id=room_id,
+            user_id=user.id,
+            chat_id=callback.message.chat.id,
+            message_id=callback.message.message_id,
+        )
 
     await callback.answer()

@@ -235,6 +235,8 @@ async def remove_member(
 
         await NotificationService.notify_member_removed(
             bot=bot,
+            session=session,
+            room_id=room_id,
             telegram_ids=telegram_ids,
             member_name=removed_user_name,
         )

@@ -7,6 +7,7 @@ from keyboards.payment_delete_menu import payment_delete_menu
 from services.room_member_service import RoomMemberService
 from services.room_history_service import RoomHistoryService
 from services.notification_service import NotificationService
+from services.room_message_service import RoomMessageService
 
 
 
@@ -112,17 +113,26 @@ async def payment_user(
         PaymentState.waiting_amount
     )
 
-    await callback.message.answer(
+    sent_message = await callback.message.answer(
         f"""
-💳 <b>Плательщик:</b> {payer_name}
+    💳 <b>Плательщик:</b> {payer_name}
 
-Введите сумму, которую он оплатил.
+    Введите сумму, которую он оплатил.
 
-Например:
-<code>100</code>
-""",
+    Например:
+    <code>100</code>
+    """,
         parse_mode="HTML",
     )
+
+    async with AsyncSessionLocal() as session:
+
+        await RoomMessageService.save(
+            session=session,
+            room_id=room_id,
+            chat_id=sent_message.chat.id,
+            message_id=sent_message.message_id,
+        )
 
     await callback.answer()
 
@@ -563,6 +573,8 @@ async def payment_delete_confirm(
 
             await NotificationService.notify_debt_changed_after_delete(
                 bot=bot,
+                session=session,
+                room_id=room_id,
                 telegram_id=user.telegram_id,
                 user_name=deleted_by_name,
                 description=payment_description,
@@ -864,9 +876,16 @@ async def payment_payer(
     )
 
     await callback.message.edit_text(
-        f"💳 Плательщик: <b>{payer.first_name}</b>\n\n"
-        "💰 Введите сумму платежа:",
-        parse_mode="HTML",
+    f"💳 Плательщик: <b>{payer.first_name}</b>\n\n"
+    "💰 Введите сумму платежа:",
+    parse_mode="HTML",
+    )
+
+    await RoomMessageService.save(
+        session=session,
+        room_id=room_id,
+        chat_id=callback.message.chat.id,
+        message_id=callback.message.message_id,
     )
 
     await callback.answer()
@@ -912,13 +931,22 @@ async def payment_amount(
         amount=amount,
     )
 
-    await message.answer(
-        f"💰 Сумма: <b>{amount:.2f} zł</b>\n\n"
-        "📝 Введите название расхода.\n\n"
-        "Например:\n"
-        "Пицца",
-        parse_mode="HTML",
-    )
+    async with AsyncSessionLocal() as session:
+
+        sent_message = await message.answer(
+            f"💰 Сумма: <b>{amount:.2f} zł</b>\n\n"
+            "📝 Введите название расхода.\n\n"
+            "Например:\n"
+            "Пицца",
+            parse_mode="HTML",
+        )
+
+        await RoomMessageService.save(
+            session=session,
+            room_id=room_id,
+            chat_id=sent_message.chat.id,
+            message_id=sent_message.message_id,
+        )
 
     await state.set_state(
         PaymentState.waiting_description
@@ -1096,6 +1124,8 @@ async def payment_description(
 
             await NotificationService.notify_debt_changed(
                 bot=bot,
+                session=session,
+                room_id=room_id,
                 telegram_id=user.telegram_id,
                 payer_name=payer_name,
                 description=description,
@@ -1143,7 +1173,7 @@ async def payment_description(
         f"💰 Всего: <b>{total:.2f} zł</b>"
     )
 
-    await message.answer(
+    sent_message = await message.answer(
         text,
         parse_mode="HTML",
         reply_markup=payment_manage_menu(
@@ -1151,3 +1181,12 @@ async def payment_description(
             payments=payments,
         ),
     )
+
+    async with AsyncSessionLocal() as session:
+
+        await RoomMessageService.save(
+            session=session,
+            room_id=room_id,
+            chat_id=sent_message.chat.id,
+            message_id=sent_message.message_id,
+        )

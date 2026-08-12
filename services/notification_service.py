@@ -1,11 +1,20 @@
 from aiogram import Bot
+from sqlalchemy.ext.asyncio import AsyncSession
+
+from services.room_message_service import RoomMessageService
 
 
 class NotificationService:
 
+    # ============================================================
+    # НОВЫЙ РАСХОД
+    # ============================================================
+
     @staticmethod
     async def notify_payment_added(
         bot: Bot,
+        session: AsyncSession,
+        room_id: int,
         telegram_ids: list[int],
         payer_name: str,
         description: str,
@@ -26,28 +35,47 @@ class NotificationService:
         for telegram_id in telegram_ids:
 
             try:
-                await bot.send_message(
+
+                sent_message = await bot.send_message(
                     chat_id=telegram_id,
                     text=text,
                     parse_mode="HTML",
                 )
 
-            except Exception as e:
-                print(
-                    f"❌ Не удалось отправить "
-                    f"уведомление пользователю "
-                    f"{telegram_id}: {e}"
+                await RoomMessageService.save(
+                    session=session,
+                    room_id=room_id,
+                    chat_id=telegram_id,
+                    message_id=sent_message.message_id,
                 )
 
+            except Exception as e:
+
+                print(
+                    "❌ Не удалось отправить "
+                    "уведомление о новом расходе "
+                    f"пользователю {telegram_id}: {e}"
+                )
+
+    # ============================================================
+    # РАСХОД УДАЛЁН
+    # ============================================================
 
     @staticmethod
     async def notify_payment_deleted(
         bot: Bot,
+        session: AsyncSession,
+        room_id: int,
         telegram_ids: list[int],
         user_name: str,
         description: str,
         amount: float,
     ):
+        """
+        Уведомляет участников комнаты
+        об удалении платежа.
+        """
+
         text = (
             "🗑 <b>Расход удалён</b>\n\n"
             f"👤 {user_name} удалил расход:\n"
@@ -58,23 +86,37 @@ class NotificationService:
         for telegram_id in telegram_ids:
 
             try:
-                await bot.send_message(
+
+                sent_message = await bot.send_message(
                     chat_id=telegram_id,
                     text=text,
                     parse_mode="HTML",
                 )
 
-            except Exception as e:
-                print(
-                    f"❌ Не удалось отправить "
-                    f"уведомление пользователю "
-                    f"{telegram_id}: {e}"
+                await RoomMessageService.save(
+                    session=session,
+                    room_id=room_id,
+                    chat_id=telegram_id,
+                    message_id=sent_message.message_id,
                 )
 
+            except Exception as e:
+
+                print(
+                    "❌ Не удалось отправить "
+                    "уведомление об удалении расхода "
+                    f"пользователю {telegram_id}: {e}"
+                )
+
+    # ============================================================
+    # НОВЫЙ УЧАСТНИК
+    # ============================================================
 
     @staticmethod
     async def notify_member_joined(
         bot: Bot,
+        session: AsyncSession,
+        room_id: int,
         telegram_ids: list[int],
         member_name: str,
     ):
@@ -92,23 +134,37 @@ class NotificationService:
         for telegram_id in telegram_ids:
 
             try:
-                await bot.send_message(
+
+                sent_message = await bot.send_message(
                     chat_id=telegram_id,
                     text=text,
                     parse_mode="HTML",
                 )
 
-            except Exception as e:
-                print(
-                    f"❌ Не удалось отправить "
-                    f"уведомление пользователю "
-                    f"{telegram_id}: {e}"
+                await RoomMessageService.save(
+                    session=session,
+                    room_id=room_id,
+                    chat_id=telegram_id,
+                    message_id=sent_message.message_id,
                 )
 
+            except Exception as e:
+
+                print(
+                    "❌ Не удалось отправить "
+                    "уведомление о новом участнике "
+                    f"пользователю {telegram_id}: {e}"
+                )
+
+    # ============================================================
+    # УЧАСТНИК УДАЛЁН
+    # ============================================================
 
     @staticmethod
     async def notify_member_removed(
         bot: Bot,
+        session: AsyncSession,
+        room_id: int,
         telegram_ids: list[int],
         member_name: str,
     ):
@@ -126,22 +182,37 @@ class NotificationService:
         for telegram_id in telegram_ids:
 
             try:
-                await bot.send_message(
+
+                sent_message = await bot.send_message(
                     chat_id=telegram_id,
                     text=text,
                     parse_mode="HTML",
                 )
 
-            except Exception as e:
-                print(
-                    f"❌ Не удалось отправить "
-                    f"уведомление пользователю "
-                    f"{telegram_id}: {e}"
+                await RoomMessageService.save(
+                    session=session,
+                    room_id=room_id,
+                    chat_id=telegram_id,
+                    message_id=sent_message.message_id,
                 )
+
+            except Exception as e:
+
+                print(
+                    "❌ Не удалось отправить "
+                    "уведомление об удалении участника "
+                    f"пользователю {telegram_id}: {e}"
+                )
+
+    # ============================================================
+    # БАЛАНС ПОСЛЕ ДОБАВЛЕНИЯ РАСХОДА
+    # ============================================================
 
     @staticmethod
     async def notify_debt_changed(
         bot: Bot,
+        session: AsyncSession,
+        room_id: int,
         telegram_id: int,
         payer_name: str,
         description: str,
@@ -155,24 +226,27 @@ class NotificationService:
         """
 
         if balance > 0:
+
             balance_text = (
-                f"🟢 Тебе должны: "
+                "🟢 Тебе должны: "
                 f"<b>{balance:.2f} zł</b>"
             )
 
         elif balance < 0:
+
             balance_text = (
-                f"🔴 Ты должен: "
+                "🔴 Ты должен: "
                 f"<b>{abs(balance):.2f} zł</b>"
             )
 
         else:
+
             balance_text = (
                 "⚪ Баланс: <b>0.00 zł</b>"
             )
 
-        # Если пользователь сам добавил расход
         if payer_name:
+
             text = (
                 "💳 <b>Новый расход</b>\n\n"
                 f"👤 <b>{payer_name}</b> добавил:\n"
@@ -184,6 +258,7 @@ class NotificationService:
             )
 
         else:
+
             text = (
                 "💸 <b>Баланс изменён</b>\n\n"
                 f"📝 {description}\n"
@@ -194,22 +269,37 @@ class NotificationService:
             )
 
         try:
-            await bot.send_message(
+
+            sent_message = await bot.send_message(
                 chat_id=telegram_id,
                 text=text,
                 parse_mode="HTML",
             )
 
+            await RoomMessageService.save(
+                session=session,
+                room_id=room_id,
+                chat_id=telegram_id,
+                message_id=sent_message.message_id,
+            )
+
         except Exception as e:
+
             print(
-                f"❌ Не удалось отправить "
+                "❌ Не удалось отправить "
                 f"уведомление пользователю "
                 f"{telegram_id}: {e}"
             )
 
+    # ============================================================
+    # БАЛАНС ПОСЛЕ УДАЛЕНИЯ РАСХОДА
+    # ============================================================
+
     @staticmethod
     async def notify_debt_changed_after_delete(
         bot: Bot,
+        session: AsyncSession,
+        room_id: int,
         telegram_id: int,
         user_name: str,
         description: str,
@@ -223,18 +313,21 @@ class NotificationService:
         """
 
         if balance > 0:
+
             balance_text = (
-                f"🟢 Тебе должны: "
+                "🟢 Тебе должны: "
                 f"<b>{balance:.2f} zł</b>"
             )
 
         elif balance < 0:
+
             balance_text = (
-                f"🔴 Ты должен: "
+                "🔴 Ты должен: "
                 f"<b>{abs(balance):.2f} zł</b>"
             )
 
         else:
+
             balance_text = (
                 "⚪ Баланс: <b>0.00 zł</b>"
             )
@@ -250,15 +343,24 @@ class NotificationService:
         )
 
         try:
-            await bot.send_message(
+
+            sent_message = await bot.send_message(
                 chat_id=telegram_id,
                 text=text,
                 parse_mode="HTML",
             )
 
+            await RoomMessageService.save(
+                session=session,
+                room_id=room_id,
+                chat_id=telegram_id,
+                message_id=sent_message.message_id,
+            )
+
         except Exception as e:
+
             print(
-                f"❌ Не удалось отправить "
+                "❌ Не удалось отправить "
                 f"уведомление пользователю "
                 f"{telegram_id}: {e}"
             )

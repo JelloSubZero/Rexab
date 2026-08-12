@@ -126,6 +126,21 @@ class RoomSettlementRepository:
 
         return settlement
 
+    @staticmethod
+    async def get_confirmed_for_room(
+        session: AsyncSession,
+        room_id: int,
+    ):
+        result = await session.execute(
+            select(RoomSettlement)
+            .where(
+                RoomSettlement.room_id == room_id,
+                RoomSettlement.status == "confirmed",
+            )
+        )
+
+        return result.scalars().all()
+
 
     @staticmethod
     async def get_room_history(
