@@ -1,4 +1,5 @@
 from datetime import datetime
+from sqlalchemy import UniqueConstraint
 
 from uuid import uuid4
 from enum import Enum
@@ -123,6 +124,14 @@ class RoomMember(Base):
         default=datetime.utcnow,
     )
 
+    __table_args__ = (
+        UniqueConstraint(
+            "room_id",
+            "user_id",
+            name="uq_room_member",
+        ),
+    )
+
     room = relationship("Room")
     user = relationship("User")
 
@@ -147,6 +156,14 @@ class RoomView(Base):
     )
 
     message_id: Mapped[int] = mapped_column()
+
+    __table_args__ = (
+        UniqueConstraint(
+            "room_id",
+            "user_id",
+            name="uq_room_view",
+        ),
+    )
 
     room = relationship("Room")
     user = relationship("User")

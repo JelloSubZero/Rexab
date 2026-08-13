@@ -8,6 +8,7 @@ from services.room_member_service import RoomMemberService
 from services.room_history_service import RoomHistoryService
 from services.notification_service import NotificationService
 from services.room_message_service import RoomMessageService
+from services.room_view_service import RoomViewService
 
 
 
@@ -866,27 +867,29 @@ async def payment_payer(
             )
             return
 
-    await state.set_state(
-        PaymentState.waiting_amount
-    )
+        await state.set_state(
+            PaymentState.waiting_amount
+        )
 
-    await state.update_data(
-        room_id=room_id,
-        payer_id=user_id,
-    )
+        await state.update_data(
+            room_id=room_id,
+            payer_id=user_id,
+        )
 
-    await callback.message.edit_text(
-    f"💳 Плательщик: <b>{payer.first_name}</b>\n\n"
-    "💰 Введите сумму платежа:",
-    parse_mode="HTML",
-    )
+        await callback.message.edit_text(
+            f"💳 Плательщик: <b>{payer.first_name}</b>\n\n"
+            "💰 Введите сумму платежа:",
+            parse_mode="HTML",
+        )
 
-    await RoomMessageService.save(
-        session=session,
-        room_id=room_id,
-        chat_id=callback.message.chat.id,
-        message_id=callback.message.message_id,
-    )
+        # Сохраняем актуальное сообщение комнаты
+        await RoomViewService.save_message(
+            session=session,
+            room_id=room_id,
+            user_id=current_user.id,
+            chat_id=callback.message.chat.id,
+            message_id=callback.message.message_id,
+        )
 
     await callback.answer()
 

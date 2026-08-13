@@ -3,12 +3,13 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from database.models import (
     Room,
-    Receipt,
-    RoomMember,
     RoomView,
+    RoomMessage,
+    RoomSettlement,
     RoomPayment,
     RoomHistory,
-    RoomSettlement,
+    Receipt,
+    RoomMember,
 )
 
 
@@ -77,6 +78,12 @@ class RoomRepository:
         await session.execute(
             delete(RoomView).where(
                 RoomView.room_id == room_id
+            )
+        )
+
+        await session.execute(
+            delete(RoomMessage).where(
+                RoomMessage.room_id == room_id
             )
         )
 

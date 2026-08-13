@@ -1,6 +1,7 @@
 from aiogram import Router, Bot
 from aiogram.filters import CommandStart
 from aiogram.types import Message
+from database.models import RoomStatus
 
 from database.session import AsyncSessionLocal
 
@@ -56,12 +57,19 @@ async def start(
             )
 
             if room is None:
-
                 await message.answer(
                     "❌ Комната не найдена.",
                     reply_markup=main_menu(),
                 )
+                return
 
+            if room.status != RoomStatus.ACTIVE.value:
+                await message.answer(
+                    "🔒 <b>Комната закрыта</b>\n\n"
+                    "Присоединиться к этой комнате больше нельзя.",
+                    parse_mode="HTML",
+                    reply_markup=main_menu(),
+                )
                 return
 
             # Добавляем пользователя
