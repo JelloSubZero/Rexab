@@ -15,7 +15,6 @@ class RoomMessageService:
         chat_id: int,
         message_id: int,
     ):
-
         return await RoomMessageRepository.create(
             session=session,
             room_id=room_id,
@@ -29,7 +28,6 @@ class RoomMessageService:
         session: AsyncSession,
         room_id: int,
     ):
-
         messages = await RoomMessageRepository.get_by_room(
             session=session,
             room_id=room_id,
@@ -38,7 +36,6 @@ class RoomMessageService:
         for message in messages:
 
             try:
-
                 await bot.delete_message(
                     chat_id=message.chat_id,
                     message_id=message.message_id,
@@ -57,3 +54,27 @@ class RoomMessageService:
         )
 
         await session.commit()
+
+    @staticmethod
+    async def send(
+        bot: Bot,
+        session: AsyncSession,
+        room_id: int,
+        chat_id: int,
+        text: str,
+        **kwargs,
+    ):
+        message = await bot.send_message(
+            chat_id=chat_id,
+            text=text,
+            **kwargs,
+        )
+
+        await RoomMessageRepository.create(
+            session=session,
+            room_id=room_id,
+            chat_id=message.chat.id,
+            message_id=message.message_id,
+        )
+
+        return message

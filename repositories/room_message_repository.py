@@ -13,7 +13,6 @@ class RoomMessageRepository:
         chat_id: int,
         message_id: int,
     ):
-
         message = RoomMessage(
             room_id=room_id,
             chat_id=chat_id,
@@ -21,8 +20,8 @@ class RoomMessageRepository:
         )
 
         session.add(message)
-        await session.commit()
-        await session.refresh(message)
+
+        await session.flush()
 
         return message
 
@@ -31,7 +30,6 @@ class RoomMessageRepository:
         session: AsyncSession,
         room_id: int,
     ):
-
         result = await session.execute(
             select(RoomMessage).where(
                 RoomMessage.room_id == room_id
@@ -45,7 +43,6 @@ class RoomMessageRepository:
         session: AsyncSession,
         room_id: int,
     ):
-
         await session.execute(
             delete(RoomMessage).where(
                 RoomMessage.room_id == room_id

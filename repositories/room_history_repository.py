@@ -27,8 +27,7 @@ class RoomHistoryRepository:
 
         session.add(history)
 
-        await session.commit()
-        await session.refresh(history)
+        await session.flush()
 
         return history
 

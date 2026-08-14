@@ -587,6 +587,8 @@ async def payment_delete_confirm(
     # --------------------------------
     # ФОРМИРУЕМ ОБНОВЛЁННЫЙ СПИСОК
     # --------------------------------
+        await session.commit()
+
 
     if not payments:
 
@@ -936,20 +938,21 @@ async def payment_amount(
 
     async with AsyncSessionLocal() as session:
 
-        sent_message = await message.answer(
-            f"💰 Сумма: <b>{amount:.2f} zł</b>\n\n"
-            "📝 Введите название расхода.\n\n"
-            "Например:\n"
-            "Пицца",
+        await RoomMessageService.send(
+            bot=message.bot,
+            session=session,
+            room_id=room_id,
+            chat_id=message.chat.id,
+            text=(
+                f"💰 Сумма: <b>{amount:.2f} zł</b>\n\n"
+                "📝 Введите название расхода.\n\n"
+                "Например:\n"
+                "Пицца"
+            ),
             parse_mode="HTML",
         )
 
-        await RoomMessageService.save(
-            session=session,
-            room_id=room_id,
-            chat_id=sent_message.chat.id,
-            message_id=sent_message.message_id,
-        )
+        await session.commit()
 
     await state.set_state(
         PaymentState.waiting_description
@@ -1137,59 +1140,69 @@ async def payment_description(
                 balance=float(balance),
             )
 
+        # --------------------------------
+        # ФОРМИРУЕМ ФИНАЛЬНОЕ СООБЩЕНИЕ
+        # --------------------------------
+    
+
+        payments_text = ""
+        total = 0
+
+        for payment in payments:
+
+            name = (
+                payment.user.first_name
+                if payment.user
+                else "Неизвестный"
+            )
+
+            payment_description = (
+                payment.description
+                if payment.description
+                else "Расход"
+            )
+
+            total += payment.amount
+
+            payments_text += (
+                f"• <b>{name}</b> — "
+                f"<b>{payment.amount:.2f} zł</b>\n"
+                f"  📝 {payment_description}\n\n"
+            )
+
+        text = (
+            "✅ <b>Платёж добавлен</b>\n\n"
+            "💳 <b>Платежи комнаты</b>\n\n"
+            f"{payments_text}"
+            "────────────────\n"
+            f"💰 Всего: <b>{total:.2f} zł</b>"
+        )
+
+        # --------------------------------
+        # ОТПРАВЛЯЕМ И СОХРАНЯЕМ СООБЩЕНИЕ
+        # --------------------------------
+
+        await RoomMessageService.send(
+            bot=bot,
+            session=session,
+            room_id=room_id,
+            chat_id=message.chat.id,
+            text=text,
+            parse_mode="HTML",
+            reply_markup=payment_manage_menu(
+                room_id=room_id,
+                payments=payments,
+            ),
+        )
+
+        # --------------------------------
+        # ФИКСИРУЕМ ТРАНЗАКЦИЮ
+        # --------------------------------
+
+        await session.commit()
+
     # --------------------------------
     # ОЧИЩАЕМ FSM
     # --------------------------------
 
     await state.clear()
-
-    payments_text = ""
-    total = 0
-
-    for payment in payments:
-
-        name = (
-            payment.user.first_name
-            if payment.user
-            else "Неизвестный"
-        )
-
-        payment_description = (
-            payment.description
-            if payment.description
-            else "Расход"
-        )
-
-        total += payment.amount
-
-        payments_text += (
-            f"• <b>{name}</b> — "
-            f"<b>{payment.amount:.2f} zł</b>\n"
-            f"  📝 {payment_description}\n\n"
-        )
-
-    text = (
-        "✅ <b>Платёж добавлен</b>\n\n"
-        "💳 <b>Платежи комнаты</b>\n\n"
-        f"{payments_text}"
-        "────────────────\n"
-        f"💰 Всего: <b>{total:.2f} zł</b>"
-    )
-
-    sent_message = await message.answer(
-        text,
-        parse_mode="HTML",
-        reply_markup=payment_manage_menu(
-            room_id=room_id,
-            payments=payments,
-        ),
-    )
-
-    async with AsyncSessionLocal() as session:
-
-        await RoomMessageService.save(
-            session=session,
-            room_id=room_id,
-            chat_id=sent_message.chat.id,
-            message_id=sent_message.message_id,
-        )

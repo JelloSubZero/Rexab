@@ -24,8 +24,7 @@ class RoomPaymentRepository:
 
         session.add(payment)
 
-        await session.commit()
-        await session.refresh(payment)
+        await session.flush()
 
         return payment
 
@@ -82,7 +81,8 @@ class RoomPaymentRepository:
             return False
 
         await session.delete(payment)
-        await session.commit()
+
+        await session.flush()
 
         return True
 
