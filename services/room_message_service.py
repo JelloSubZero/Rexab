@@ -53,8 +53,6 @@ class RoomMessageService:
             room_id=room_id,
         )
 
-        await session.commit()
-
     @staticmethod
     async def send(
         bot: Bot,

@@ -14,7 +14,6 @@ class RoomViewRepository:
         chat_id: int,
         message_id: int,
     ):
-
         view = await RoomViewRepository.get(
             session=session,
             room_id=room_id,
@@ -22,11 +21,10 @@ class RoomViewRepository:
         )
 
         if view:
-
             view.chat_id = chat_id
             view.message_id = message_id
 
-            await session.commit()
+            await session.flush()
 
             return view
 
@@ -39,8 +37,7 @@ class RoomViewRepository:
 
         session.add(view)
 
-        await session.commit()
-        await session.refresh(view)
+        await session.flush()
 
         print("===== ROOM VIEW =====")
         print(f"room={room_id}")
@@ -57,7 +54,6 @@ class RoomViewRepository:
         room_id: int,
         user_id: int,
     ):
-
         result = await session.execute(
             select(RoomView).where(
                 RoomView.room_id == room_id,
@@ -72,11 +68,12 @@ class RoomViewRepository:
         session: AsyncSession,
         room_id: int,
     ):
-
         result = await session.execute(
             select(RoomView).where(
                 RoomView.room_id == room_id,
             )
         )
 
-        return list(result.scalars().all())
+        return list(
+            result.scalars().all()
+        )

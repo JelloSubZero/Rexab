@@ -379,6 +379,8 @@ async def room_close_confirm(
                     f"для пользователя {room_view.user_id}: {e}"
                 )
 
+            await session.commit()
+            
     await callback.answer(
         "✅ Комната закрыта"
     )

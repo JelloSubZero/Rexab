@@ -893,6 +893,8 @@ async def payment_payer(
             message_id=callback.message.message_id,
         )
 
+        await session.commit()
+        
     await callback.answer()
 
 

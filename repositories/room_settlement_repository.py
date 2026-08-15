@@ -1,3 +1,5 @@
+from datetime import datetime
+
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
@@ -24,8 +26,7 @@ class RoomSettlementRepository:
 
         session.add(settlement)
 
-        await session.commit()
-        await session.refresh(settlement)
+        await session.flush()
 
         return settlement
 
@@ -116,31 +117,12 @@ class RoomSettlementRepository:
         if settlement.status != "pending":
             return None
 
-        from datetime import datetime
-
         settlement.status = "confirmed"
         settlement.confirmed_at = datetime.utcnow()
 
-        await session.commit()
-        await session.refresh(settlement)
+        await session.flush()
 
         return settlement
-
-    @staticmethod
-    async def get_confirmed_for_room(
-        session: AsyncSession,
-        room_id: int,
-    ):
-        result = await session.execute(
-            select(RoomSettlement)
-            .where(
-                RoomSettlement.room_id == room_id,
-                RoomSettlement.status == "confirmed",
-            )
-        )
-
-        return result.scalars().all()
-
 
     @staticmethod
     async def get_room_history(

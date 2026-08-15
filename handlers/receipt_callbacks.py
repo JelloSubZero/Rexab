@@ -104,6 +104,8 @@ async def finish_receipts(
             message_id=msg.message_id,
         )
 
+        await session.commit()
+
     await state.clear()
 
     await callback.answer()

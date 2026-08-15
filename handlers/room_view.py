@@ -69,4 +69,6 @@ async def room_view(
             message_id=callback.message.message_id,
         )
 
+        await session.commit()
+
     await callback.answer()

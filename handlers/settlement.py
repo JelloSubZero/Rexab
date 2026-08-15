@@ -257,7 +257,10 @@ async def settlement_create(
 
         try:
 
-            sent_message = await bot.send_message(
+            await RoomMessageService.send(
+                bot=bot,
+                session=session,
+                room_id=room_id,
                 chat_id=receiver.telegram_id,
                 text=(
                     "💰 <b>Ожидается погашение</b>\n\n"
@@ -274,20 +277,12 @@ async def settlement_create(
                 ),
             )
 
-            await RoomMessageService.save(
-                session=session,
-                room_id=room_id,
-                chat_id=receiver.telegram_id,
-                message_id=sent_message.message_id,
-            )
-
         except Exception as e:
 
             print(
                 "❌ Не удалось отправить "
                 f"уведомление получателю: {e}"
             )
-
         # --------------------------------
         # УВЕДОМЛЯЕМ ДОЛЖНИКА
         # --------------------------------
@@ -296,7 +291,10 @@ async def settlement_create(
 
             try:
 
-                sent_message = await bot.send_message(
+                await RoomMessageService.send(
+                    bot=bot,
+                    session=session,
+                    room_id=room_id,
                     chat_id=debtor.telegram_id,
                     text=(
                         "💸 <b>Ожидается подтверждение</b>\n\n"
@@ -309,19 +307,18 @@ async def settlement_create(
                     parse_mode="HTML",
                 )
 
-                await RoomMessageService.save(
-                    session=session,
-                    room_id=room_id,
-                    chat_id=debtor.telegram_id,
-                    message_id=sent_message.message_id,
-                )
-
             except Exception as e:
 
                 print(
                     "❌ Не удалось отправить "
                     f"уведомление должнику: {e}"
                 )
+
+        # --------------------------------
+        # ФИКСИРУЕМ TRANSACTION
+        # --------------------------------
+
+        await session.commit()
 
     # --------------------------------
     # ОБНОВЛЯЕМ ЭКРАН
