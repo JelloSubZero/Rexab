@@ -1,4 +1,4 @@
-from sqlalchemy import func, select
+from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from database.models import Receipt
@@ -22,45 +22,45 @@ class ReceiptRepository:
 
         session.add(receipt)
 
-        await session.commit()
-        await session.refresh(receipt)
+        await session.flush()
 
         return receipt
 
     @staticmethod
     async def get_room_total(
-            session: AsyncSession,
-            room_id: int,
-        ) -> float:
+        session: AsyncSession,
+        room_id: int,
+    ) -> float:
 
-            result = await session.execute(
-                select(Receipt).where(
-                    Receipt.room_id == room_id
-                )
+        result = await session.execute(
+            select(Receipt).where(
+                Receipt.room_id == room_id
+            )
+        )
+
+        receipts = result.scalars().all()
+
+        print("\n========== RECEIPTS ==========")
+        print(f"Room ID: {room_id}")
+        print(f"Количество чеков: {len(receipts)}")
+
+        total = 0.0
+
+        for receipt in receipts:
+
+            print(
+                f"id={receipt.id}, "
+                f"room={receipt.room_id}, "
+                f"total={receipt.total}"
             )
 
-            receipts = result.scalars().all()
+            if receipt.total is not None:
+                total += receipt.total
 
-            print("\n========== RECEIPTS ==========")
-            print(f"Room ID: {room_id}")
-            print(f"Количество чеков: {len(receipts)}")
+        print(f"ИТОГО: {total}")
+        print("==============================\n")
 
-            total = 0.0
-
-            for receipt in receipts:
-                print(
-                    f"id={receipt.id}, "
-                    f"room={receipt.room_id}, "
-                    f"total={receipt.total}"
-                )
-
-                if receipt.total is not None:
-                    total += receipt.total
-
-            print(f"ИТОГО: {total}")
-            print("==============================\n")
-
-            return total
+        return total
 
     @staticmethod
     async def update_total(
@@ -79,8 +79,7 @@ class ReceiptRepository:
 
         receipt.total = total
 
-        await session.commit()
-        await session.refresh(receipt)
+        await session.flush()
 
         return receipt
 
@@ -92,12 +91,15 @@ class ReceiptRepository:
 
         result = await session.execute(
             select(Receipt)
-            .where(Receipt.room_id == room_id)
-            .order_by(Receipt.id)
+            .where(
+                Receipt.room_id == room_id
+            )
+            .order_by(
+                Receipt.id
+            )
         )
 
         return result.scalars().all()
-
 
     @staticmethod
     async def delete(
@@ -114,7 +116,7 @@ class ReceiptRepository:
             return False
 
         await session.delete(receipt)
-        await session.commit()
+        await session.flush()
 
         return True
 

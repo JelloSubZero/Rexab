@@ -168,7 +168,9 @@ async def delete_receipt(
     await callback.answer()
 
 
-@router.callback_query(F.data.startswith("delete_receipt_confirm:"))
+@router.callback_query(
+    F.data.startswith("delete_receipt_confirm:")
+)
 async def delete_receipt_confirm(
     callback: CallbackQuery,
 ):
@@ -177,6 +179,10 @@ async def delete_receipt_confirm(
     )
 
     async with AsyncSessionLocal() as session:
+
+        # --------------------------------
+        # ПОЛУЧАЕМ ЧЕК
+        # --------------------------------
 
         receipt = await ReceiptService.get_receipt(
             session=session,
@@ -192,35 +198,25 @@ async def delete_receipt_confirm(
 
         room_id = receipt.room_id
 
-        current_user = await UserRepository.get_by_telegram_id(
-            session=session,
-            telegram_id=callback.from_user.id,
-        )
+        # --------------------------------
+        # УДАЛЯЕМ ЧЕК
+        # --------------------------------
 
-        if current_user is None:
-            await callback.answer(
-                "❌ Пользователь не найден.",
-                show_alert=True,
-            )
-            return
-
-        has_access = await RoomAccessService.check_access(
-            session=session,
-            room_id=room_id,
-            user_id=current_user.id,
-        )
-
-        if not has_access:
-            await callback.answer(
-                "❌ Вы больше не участник этой комнаты.",
-                show_alert=True,
-            )
-            return
-
-        await ReceiptService.delete_receipt(
+        deleted = await ReceiptService.delete_receipt(
             session=session,
             receipt_id=receipt_id,
         )
+
+        if not deleted:
+            await callback.answer(
+                "❌ Не удалось удалить чек.",
+                show_alert=True,
+            )
+            return
+
+        # --------------------------------
+        # ОБНОВЛЯЕМ ОСНОВНОЙ ЭКРАН
+        # --------------------------------
 
         await RoomViewService.refresh_room(
             bot=callback.bot,
@@ -228,49 +224,18 @@ async def delete_receipt_confirm(
             room_id=room_id,
         )
 
-        receipts = await ReceiptService.get_receipts(
-            session=session,
-            room_id=room_id,
-        )
+        # --------------------------------
+        # ФИКСИРУЕМ ТРАНЗАКЦИЮ
+        # --------------------------------
 
-        total = await ReceiptService.get_room_total(
-            session=session,
-            room_id=room_id,
-        )
-
-    text = "📄 <b>Чеки комнаты</b>\n\n"
-
-    if receipts:
-
-        for receipt in receipts:
-
-            amount = (
-                f"{receipt.total:.2f} zł"
-                if receipt.total is not None
-                else "Неизвестно"
-            )
-
-            text += (
-                f"🧾 Чек #{receipt.id}\n"
-                f"💰 {amount}\n\n"
-            )
-
-    else:
-
-        text += "Чеков пока нет.\n\n"
-
-    text += (
-        "───────────────\n\n"
-        f"💰 Общая сумма:\n"
-        f"<b>{total:.2f} zł</b>"
-    )
-
-    await callback.message.edit_text(
-        text,
-        parse_mode="HTML",
-        reply_markup=room_receipts_menu(room_id),
-    )
+        await session.commit()
 
     await callback.answer(
         "✅ Чек удален."
     )
+
+    # --------------------------------
+    # ВОЗВРАЩАЕМ СПИСОК ЧЕКОВ
+    # --------------------------------
+
+    await room_receipts(callback)

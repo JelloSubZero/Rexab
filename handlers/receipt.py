@@ -96,22 +96,25 @@ async def receipt_handler(
                 total=result.receipt.total,
             )
 
-        # --------------------------------
-        # ЕСЛИ СУММУ ОПРЕДЕЛИТЬ НЕ УДАЛОСЬ
-        # --------------------------------
+            # --------------------------------
+            # ЕСЛИ СУММУ ОПРЕДЕЛИТЬ НЕ УДАЛОСЬ
+            # --------------------------------
 
-        if result.receipt.total is None:
+            if result.receipt.total is None:
 
-            await state.update_data(
-                receipt_id=receipt.id,
-                room_id=room_id,
-            )
+                # Фиксируем Receipt,
+                # потому что его ID нужен
+                # следующему FSM-состоянию.
+                await session.commit()
 
-            await state.set_state(
-                ReceiptState.waiting_total
-            )
+                await state.update_data(
+                    receipt_id=receipt.id,
+                    room_id=room_id,
+                )
 
-            async with AsyncSessionLocal() as session:
+                await state.set_state(
+                    ReceiptState.waiting_total
+                )
 
                 sent_message = await message.answer(
                     "❌ Не удалось определить сумму чека.\n\n"
@@ -121,26 +124,27 @@ async def receipt_handler(
                     parse_mode="HTML",
                 )
 
-                await RoomMessageService.save(
-                    session=session,
-                    room_id=room_id,
-                    chat_id=sent_message.chat.id,
-                    message_id=sent_message.message_id,
-                )
+                # Сохраняем сообщение в room_messages
+                async with AsyncSessionLocal() as message_session:
 
-            return
+                    await RoomMessageService.save(
+                        session=message_session,
+                        room_id=room_id,
+                        chat_id=sent_message.chat.id,
+                        message_id=sent_message.message_id,
+                    )
 
-        # --------------------------------
-        # ПОЛУЧАЕМ ОБЩУЮ СУММУ КОМНАТЫ
-        # --------------------------------
+                    await message_session.commit()
 
-        async with AsyncSessionLocal() as session:
+                return
 
-            room_total = (
-                await ReceiptService.get_room_total(
-                    session=session,
-                    room_id=room_id,
-                )
+            # --------------------------------
+            # ПОЛУЧАЕМ ОБЩУЮ СУММУ КОМНАТЫ
+            # --------------------------------
+
+            room_total = await ReceiptService.get_room_total(
+                session=session,
+                room_id=room_id,
             )
 
             # --------------------------------
@@ -178,6 +182,12 @@ async def receipt_handler(
                 message_id=sent_message.message_id,
             )
 
+            # --------------------------------
+            # ФИКСИРУЕМ ТРАНЗАКЦИЮ
+            # --------------------------------
+
+            await session.commit()
+
         # --------------------------------
         # СЛЕДУЮЩИЙ ЧЕК
         # --------------------------------
@@ -193,6 +203,7 @@ async def receipt_handler(
         # Ошибка также относится к текущему процессу комнаты,
         # но room_id может быть недоступен, поэтому просто
         # отправляем сообщение без сохранения.
+
         await message.answer(
             f"❌ Ошибка: {e}"
         )
@@ -263,6 +274,16 @@ async def manual_total(
             total=total,
         )
 
+        if receipt is None:
+
+            await message.answer(
+                "❌ Чек не найден."
+            )
+
+            await state.clear()
+
+            return
+
         room_total = (
             await ReceiptService.get_room_total(
                 session=session,
@@ -306,6 +327,12 @@ async def manual_total(
             chat_id=sent_message.chat.id,
             message_id=sent_message.message_id,
         )
+
+        # --------------------------------
+        # ФИКСИРУЕМ ТРАНЗАКЦИЮ
+        # --------------------------------
+
+        await session.commit()
 
     # --------------------------------
     # СОХРАНЯЕМ ROOM_ID В FSM
