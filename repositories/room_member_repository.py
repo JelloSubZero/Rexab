@@ -21,8 +21,7 @@ class RoomMemberRepository:
 
         session.add(member)
 
-        await session.commit()
-        await session.refresh(member)
+        await session.flush()
 
         return member
 
@@ -80,6 +79,6 @@ class RoomMemberRepository:
             return False
 
         await session.delete(member)
-        await session.commit()
+        await session.flush()
 
         return True

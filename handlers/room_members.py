@@ -221,6 +221,7 @@ async def remove_member(
             room_id=room_id,
             user_id=user_id,
         )
+        
 
         if not removed:
             await callback.answer(
@@ -229,6 +230,7 @@ async def remove_member(
             )
             return
 
+        await session.commit()
         # --------------------------------
         # УВЕДОМЛЕНИЕ
         # --------------------------------

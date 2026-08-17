@@ -49,37 +49,27 @@ async def create_room(
             user_id=user.id,
         )
 
-        # Сохраняем ID комнаты в FSM
         await state.update_data(
             room_id=room.id,
         )
 
-        # Ожидаем загрузку фотографии чека
         await state.set_state(
             ReceiptState.waiting_receipt,
         )
 
-        # --------------------------------
-        # СОЗДАЁМ СООБЩЕНИЕ
-        # --------------------------------
-
         sent_message = await message.answer(
             f"""
-🏠 <b>Комната создана</b>
+    🏠 <b>Комната создана</b>
 
-🔑 Код комнаты:
-<code>{room.code}</code>
+    🔑 Код комнаты:
+    <code>{room.code}</code>
 
-📸 Отправьте первый чек.
+    📸 Отправьте первый чек.
 
-После загрузки чеков вы сможете пригласить участников.
-""",
+    После загрузки чеков вы сможете пригласить участников.
+    """,
             parse_mode="HTML",
         )
-
-        # --------------------------------
-        # СОХРАНЯЕМ MESSAGE_ID
-        # --------------------------------
 
         await RoomMessageService.save(
             session=session,
@@ -88,6 +78,7 @@ async def create_room(
             message_id=sent_message.message_id,
         )
 
+        await session.commit()
 
 @router.callback_query(
     F.data.startswith("room_back:")

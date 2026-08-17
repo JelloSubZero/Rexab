@@ -1,4 +1,4 @@
-from datetime import datetime
+from datetime import UTC, datetime
 
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -118,7 +118,7 @@ class RoomSettlementRepository:
             return None
 
         settlement.status = "confirmed"
-        settlement.confirmed_at = datetime.utcnow()
+        settlement.confirmed_at = datetime.now(UTC)
 
         await session.flush()
 

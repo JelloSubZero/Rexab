@@ -41,8 +41,7 @@ class RoomRepository:
 
         session.add(room)
 
-        await session.commit()
-        await session.refresh(room)
+        await session.flush()
 
         return room
 
@@ -122,7 +121,5 @@ class RoomRepository:
         # --------------------------------
 
         await session.delete(room)
-
-        await session.commit()
-
+        await session.flush()
         return True

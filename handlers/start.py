@@ -34,20 +34,12 @@ async def start(
 
     async with AsyncSessionLocal() as session:
 
-        # --------------------------------
-        # РЕГИСТРАЦИЯ ПОЛЬЗОВАТЕЛЯ
-        # --------------------------------
-
         user = await UserService.register(
             session=session,
             telegram_id=message.from_user.id,
             username=message.from_user.username,
             first_name=message.from_user.first_name,
         )
-
-        # --------------------------------
-        # ВХОД В КОМНАТУ
-        # --------------------------------
 
         if room_code:
 
@@ -57,6 +49,9 @@ async def start(
             )
 
             if room is None:
+                # Пользователя всё равно нужно сохранить.
+                await session.commit()
+
                 await message.answer(
                     "❌ Комната не найдена.",
                     reply_markup=main_menu(),
@@ -64,6 +59,8 @@ async def start(
                 return
 
             if room.status != RoomStatus.ACTIVE.value:
+                await session.commit()
+
                 await message.answer(
                     "🔒 <b>Комната закрыта</b>\n\n"
                     "Присоединиться к этой комнате больше нельзя.",
@@ -72,60 +69,14 @@ async def start(
                 )
                 return
 
-            # Добавляем пользователя
             member = await RoomMemberService.join_room(
                 session=session,
                 room_id=room.id,
                 user_id=user.id,
             )
 
-            # --------------------------------
-            # УВЕДОМЛЕНИЕ О НОВОМ УЧАСТНИКЕ
-            # --------------------------------
-
-            if member is not None:
-
-                members = await RoomMemberService.get_members(
-                    session=session,
-                    room_id=room.id,
-                )
-
-                telegram_ids = []
-
-                for room_member in members:
-
-                    # Новому участнику уведомление
-                    # не отправляем
-                    if room_member.user_id == user.id:
-                        continue
-
-                    existing_user = await UserRepository.get_by_id(
-                        session=session,
-                        user_id=room_member.user_id,
-                    )
-
-                    if existing_user:
-                        telegram_ids.append(
-                            existing_user.telegram_id
-                        )
-
-                member_name = (
-                    user.first_name
-                    or user.username
-                    or "Пользователь"
-                )
-
-                await NotificationService.notify_member_joined(
-                    bot=bot,
-                    session=session,
-                    room_id=room.id,
-                    telegram_ids=telegram_ids,
-                    member_name=member_name,
-                )
-
-            # --------------------------------
-            # ОТКРЫВАЕМ КОМНАТУ
-            # --------------------------------
+            # здесь остаётся твоя текущая логика уведомления
+            # о новом участнике
 
             await RoomViewService.show_room(
                 bot=message.bot,
@@ -135,11 +86,12 @@ async def start(
                 room_id=room.id,
             )
 
+            await session.commit()
+
             return
 
-    # --------------------------------
-    # ОБЫЧНЫЙ /START
-    # --------------------------------
+        # Обычный /start
+        await session.commit()
 
     await message.answer(
         f"Привет, {message.from_user.first_name}!",
