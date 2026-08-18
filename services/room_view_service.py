@@ -338,5 +338,3 @@ class RoomViewService:
             session=session,
             room_id=room_id,
         )
-
-        await session.commit()

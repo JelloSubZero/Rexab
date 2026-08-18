@@ -9,6 +9,10 @@ from services.room_service import RoomService
 from services.room_member_service import RoomMemberService
 from services.room_access_service import RoomAccessService
 from services.notification_service import NotificationService
+from services.room_permission_service import (
+    RemoveMemberPermission,
+    RoomPermissionService,
+)
 
 from repositories.user_repository import UserRepository
 
@@ -16,7 +20,9 @@ from repositories.user_repository import UserRepository
 router = Router()
 
 
-@router.callback_query(F.data.startswith("room_members:"))
+@router.callback_query(
+    F.data.startswith("room_members:")
+)
 async def room_members(
     callback: CallbackQuery,
 ):
@@ -25,6 +31,10 @@ async def room_members(
     )
 
     async with AsyncSessionLocal() as session:
+
+        # --------------------------------
+        # ТЕКУЩИЙ ПОЛЬЗОВАТЕЛЬ
+        # --------------------------------
 
         current_user = await UserRepository.get_by_telegram_id(
             session=session,
@@ -37,6 +47,10 @@ async def room_members(
                 show_alert=True,
             )
             return
+
+        # --------------------------------
+        # ПРОВЕРКА ДОСТУПА
+        # --------------------------------
 
         has_access = await RoomAccessService.check_access(
             session=session,
@@ -51,6 +65,10 @@ async def room_members(
             )
             return
 
+        # --------------------------------
+        # ПОЛУЧАЕМ КОМНАТУ
+        # --------------------------------
+
         room = await RoomService.get_by_id(
             session=session,
             room_id=room_id,
@@ -63,10 +81,18 @@ async def room_members(
             )
             return
 
+        # --------------------------------
+        # ПОЛУЧАЕМ УЧАСТНИКОВ
+        # --------------------------------
+
         members = await RoomMemberService.get_members(
             session=session,
             room_id=room_id,
         )
+
+    # --------------------------------
+    # ФОРМИРУЕМ СПИСОК
+    # --------------------------------
 
     members_text = ""
 
@@ -111,7 +137,9 @@ async def room_members(
     await callback.answer()
 
 
-@router.callback_query(F.data.startswith("remove_member:"))
+@router.callback_query(
+    F.data.startswith("remove_member:")
+)
 async def remove_member(
     callback: CallbackQuery,
     bot: Bot,
@@ -123,17 +151,9 @@ async def remove_member(
 
     async with AsyncSessionLocal() as session:
 
-        room = await RoomService.get_by_id(
-            session=session,
-            room_id=room_id,
-        )
-
-        if room is None:
-            await callback.answer(
-                "❌ Комната не найдена.",
-                show_alert=True,
-            )
-            return
+        # --------------------------------
+        # ТЕКУЩИЙ ПОЛЬЗОВАТЕЛЬ
+        # --------------------------------
 
         current_user = await UserRepository.get_by_telegram_id(
             session=session,
@@ -147,14 +167,37 @@ async def remove_member(
             )
             return
 
-        if current_user.id != room.owner_id:
+        # --------------------------------
+        # ПРОВЕРКА ПРАВ
+        # --------------------------------
+
+        permission = (
+            await RoomPermissionService.can_remove_member(
+                session=session,
+                room_id=room_id,
+                actor_user_id=current_user.id,
+                target_user_id=user_id,
+            )
+        )
+
+        if permission == RemoveMemberPermission.ROOM_NOT_FOUND:
+            await callback.answer(
+                "❌ Комната не найдена.",
+                show_alert=True,
+            )
+            return
+
+        if permission == RemoveMemberPermission.NOT_OWNER:
             await callback.answer(
                 "❌ Только владелец комнаты может удалять участников.",
                 show_alert=True,
             )
             return
 
-        if user_id == room.owner_id:
+        if (
+            permission
+            == RemoveMemberPermission.OWNER_CANNOT_BE_REMOVED
+        ):
             await callback.answer(
                 "❌ Нельзя удалить владельца комнаты.",
                 show_alert=True,
@@ -221,7 +264,6 @@ async def remove_member(
             room_id=room_id,
             user_id=user_id,
         )
-        
 
         if not removed:
             await callback.answer(
@@ -230,7 +272,12 @@ async def remove_member(
             )
             return
 
+        # --------------------------------
+        # ФИКСИРУЕМ ТРАНЗАКЦИЮ
+        # --------------------------------
+
         await session.commit()
+
         # --------------------------------
         # УВЕДОМЛЕНИЕ
         # --------------------------------
@@ -252,6 +299,11 @@ async def remove_member(
             room_id=room_id,
         )
 
+        room = await RoomService.get_by_id(
+            session=session,
+            room_id=room_id,
+        )
+
     # --------------------------------
     # ФОРМИРУЕМ СПИСОК
     # --------------------------------
@@ -269,7 +321,7 @@ async def remove_member(
             else "Неизвестный"
         )
 
-        if member.user_id == room.owner_id:
+        if room and member.user_id == room.owner_id:
             name += " 👑"
 
         members_text += (
@@ -292,7 +344,7 @@ async def remove_member(
         reply_markup=room_members_menu(
             room_id=room_id,
             members=members,
-            owner_id=room.owner_id,
+            owner_id=room.owner_id if room else None,
         ),
     )
 
