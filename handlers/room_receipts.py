@@ -9,6 +9,10 @@ from keyboards.room_receipts_menu import room_receipts_menu
 from services.receipt_service import ReceiptService
 from services.room_view_service import RoomViewService
 from services.room_access_service import RoomAccessService
+from services.receipt_permission_service import (
+    ReceiptPermission,
+    ReceiptPermissionService,
+)
 
 from repositories.user_repository import UserRepository
 
@@ -181,6 +185,22 @@ async def delete_receipt_confirm(
     async with AsyncSessionLocal() as session:
 
         # --------------------------------
+        # ТЕКУЩИЙ ПОЛЬЗОВАТЕЛЬ
+        # --------------------------------
+
+        current_user = await UserRepository.get_by_telegram_id(
+            session=session,
+            telegram_id=callback.from_user.id,
+        )
+
+        if current_user is None:
+            await callback.answer(
+                "❌ Пользователь не найден.",
+                show_alert=True,
+            )
+            return
+
+        # --------------------------------
         # ПОЛУЧАЕМ ЧЕК
         # --------------------------------
 
@@ -197,6 +217,23 @@ async def delete_receipt_confirm(
             return
 
         room_id = receipt.room_id
+
+        # --------------------------------
+        # ПРОВЕРКА ПРАВ
+        # --------------------------------
+
+        permission = await ReceiptPermissionService.can_manage(
+            session=session,
+            room_id=room_id,
+            user_id=current_user.id,
+        )
+
+        if permission == ReceiptPermission.NOT_MEMBER:
+            await callback.answer(
+                "❌ Вы больше не участник этой комнаты.",
+                show_alert=True,
+            )
+            return
 
         # --------------------------------
         # УДАЛЯЕМ ЧЕК
