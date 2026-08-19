@@ -1,6 +1,12 @@
 from aiogram import Router, F
 from aiogram.types import Message
 from aiogram.fsm.context import FSMContext
+from services.receipt_permission_service import (
+    ReceiptPermission,
+    ReceiptPermissionService,
+)
+
+from repositories.user_repository import UserRepository
 
 from services.room_view_service import RoomViewService
 from services.room_message_service import RoomMessageService
@@ -43,12 +49,38 @@ async def receipt_handler(
         room_id = data.get("room_id")
 
         if room_id is None:
-
-            sent_message = await message.answer(
+            await message.answer(
                 "❌ Комната не найдена."
             )
-
             return
+
+        async with AsyncSessionLocal() as session:
+
+            user = await UserRepository.get_by_telegram_id(
+                session=session,
+                telegram_id=message.from_user.id,
+            )
+
+            if user is None:
+                await message.answer(
+                    "❌ Пользователь не найден."
+                )
+                return
+
+            permission = (
+                await ReceiptPermissionService.can_manage(
+                    session=session,
+                    room_id=room_id,
+                    user_id=user.id,
+                )
+            )
+
+            if permission == ReceiptPermission.NOT_MEMBER:
+                await message.answer(
+                    "❌ Вы больше не участник этой комнаты."
+                )
+                await state.clear()
+                return
 
         # --------------------------------
         # ПОЛУЧАЕМ ФОТО
@@ -275,6 +307,36 @@ async def manual_total(
         )
 
         if receipt is None:
+            await message.answer(
+                "❌ Чек не найден."
+            )
+            await state.clear()
+            return
+
+        user = await UserRepository.get_by_telegram_id(
+            session=session,
+            telegram_id=message.from_user.id,
+        )
+
+        if user is None:
+            await message.answer(
+                "❌ Пользователь не найден."
+            )
+            await state.clear()
+            return
+
+        permission = await ReceiptPermissionService.can_manage(
+            session=session,
+            room_id=receipt.room_id,
+            user_id=user.id,
+        )
+
+        if permission == ReceiptPermission.NOT_MEMBER:
+            await message.answer(
+                "❌ Вы больше не участник этой комнаты."
+            )
+            await state.clear()
+            return
 
             await message.answer(
                 "❌ Чек не найден."

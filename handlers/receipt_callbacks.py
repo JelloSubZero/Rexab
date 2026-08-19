@@ -1,7 +1,7 @@
 from aiogram import Router, F
-from aiogram.types import CallbackQuery, FSInputFile
+from aiogram.types import CallbackQuery, FSInputFile, message
 from aiogram.fsm.context import FSMContext
-
+from repositories.user_repository import UserRepository
 from database.session import AsyncSessionLocal
 
 from services.room_service import RoomService
@@ -11,20 +11,57 @@ from states.receipt_state import ReceiptState
 
 from keyboards.room_menu import room_menu
 
+from services.receipt_permission_service import (
+    ReceiptPermission,
+    ReceiptPermissionService,
+)
 from services.room_view_service import RoomViewService
 
-from repositories.user_repository import UserRepository
+
 router = Router()
 
 
 
 
-@router.callback_query(F.data.startswith("add_receipt:"))
+@router.callback_query(
+    F.data.startswith("add_receipt:")
+)
 async def add_receipt(
     callback: CallbackQuery,
     state: FSMContext,
 ):
-    room_id = int(callback.data.split(":")[1])
+    room_id = int(
+        callback.data.split(":")[1]
+    )
+
+    async with AsyncSessionLocal() as session:
+
+        user = await UserRepository.get_by_telegram_id(
+            session=session,
+            telegram_id=callback.from_user.id,
+        )
+
+        if user is None:
+            await callback.answer(
+                "❌ Пользователь не найден.",
+                show_alert=True,
+            )
+            return
+
+        permission = (
+            await ReceiptPermissionService.can_manage(
+                session=session,
+                room_id=room_id,
+                user_id=user.id,
+            )
+        )
+
+        if permission == ReceiptPermission.NOT_MEMBER:
+            await callback.answer(
+                "❌ Вы больше не участник этой комнаты.",
+                show_alert=True,
+            )
+            return
 
     await state.update_data(
         room_id=room_id,
@@ -49,6 +86,31 @@ async def finish_receipts(
     room_id = int(callback.data.split(":")[1])
 
     async with AsyncSessionLocal() as session:
+
+        user = await UserRepository.get_by_telegram_id(
+            session=session,
+            telegram_id=callback.from_user.id,
+        )
+
+        if user is None:
+            await message.answer(
+                "❌ Пользователь не найден."
+            )
+            await state.clear()
+            return
+
+        permission = await ReceiptPermissionService.can_manage(
+            session=session,
+            room_id=room_id,
+            user_id=user.id,
+        )
+
+        if permission == ReceiptPermission.NOT_MEMBER:
+            await message.answer(
+                "❌ Вы больше не участник этой комнаты."
+            )
+            await state.clear()
+            return
 
         room_data = await RoomViewService.build(
             session=session,

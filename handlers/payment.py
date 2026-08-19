@@ -9,13 +9,14 @@ from services.room_history_service import RoomHistoryService
 from services.notification_service import NotificationService
 from services.room_message_service import RoomMessageService
 from services.room_view_service import RoomViewService
-
+from services.payment_permission_service import (
+    PaymentPermission,
+    PaymentPermissionService,
+)
 
 
 from database.session import AsyncSessionLocal
 from database.models import RoomPayment
-
-from services.room_access_service import RoomAccessService
 from services.split_bill_service import SplitBillService
 from services.room_payment_service import RoomPaymentService
 
@@ -57,20 +58,13 @@ async def payment_user(
             )
             return
 
-        has_access = await RoomAccessService.check_access(
+        permission = await PaymentPermissionService.can_manage(
             session=session,
             room_id=room_id,
             user_id=current_user.id,
         )
 
-        print(
-            "PAYMENT DELETE ACCESS:",
-            "room_id =", room_id,
-            "user_id =", current_user.id,
-            "has_access =", has_access,
-        )
-
-        if not has_access:
+        if permission == PaymentPermission.NOT_MEMBER:
             await callback.answer(
                 "❌ Вы больше не участник этой комнаты.",
                 show_alert=True,
@@ -163,13 +157,13 @@ async def payment_done(
             )
             return
 
-        has_access = await RoomAccessService.check_access(
+        permission = await PaymentPermissionService.can_manage(
             session=session,
             room_id=room_id,
             user_id=current_user.id,
         )
 
-        if not has_access:
+        if permission == PaymentPermission.NOT_MEMBER:
             await callback.answer(
                 "❌ Вы больше не участник этой комнаты.",
                 show_alert=True,
@@ -351,14 +345,13 @@ async def payment_delete(
             )
             return
 
-        # Проверяем именно членство в комнате
-        is_member = await RoomMemberService.is_member(
+        permission = await PaymentPermissionService.can_manage(
             session=session,
             room_id=room_id,
             user_id=current_user.id,
         )
 
-        if not is_member:
+        if permission == PaymentPermission.NOT_MEMBER:
             await callback.answer(
                 "❌ Вы больше не участник этой комнаты.",
                 show_alert=True,
@@ -430,13 +423,13 @@ async def payment_delete_confirm(
         # ПРОВЕРКА УЧАСТИЯ
         # --------------------------------
 
-        is_member = await RoomMemberService.is_member(
+        permission = await PaymentPermissionService.can_manage(
             session=session,
             room_id=room_id,
             user_id=current_user.id,
         )
 
-        if not is_member:
+        if permission == PaymentPermission.NOT_MEMBER:
             await callback.answer(
                 "❌ Вы больше не участник этой комнаты.",
                 show_alert=True,
@@ -669,14 +662,13 @@ async def payment_manage(
             )
             return
 
-        # Проверяем доступ к комнате
-        has_access = await RoomAccessService.check_access(
+        permission = await PaymentPermissionService.can_manage(
             session=session,
             room_id=room_id,
             user_id=current_user.id,
         )
 
-        if not has_access:
+        if permission == PaymentPermission.NOT_MEMBER:
             await callback.answer(
                 "❌ Вы больше не участник этой комнаты.",
                 show_alert=True,
@@ -767,13 +759,13 @@ async def payment_add(
             )
             return
 
-        is_member = await RoomMemberService.is_member(
+        permission = await PaymentPermissionService.can_manage(
             session=session,
             room_id=room_id,
             user_id=current_user.id,
         )
 
-        if not is_member:
+        if permission == PaymentPermission.NOT_MEMBER:
             await callback.answer(
                 "❌ Вы больше не участник этой комнаты.",
                 show_alert=True,
@@ -844,13 +836,13 @@ async def payment_payer(
             )
             return
 
-        is_member = await RoomMemberService.is_member(
+        permission = await PaymentPermissionService.can_manage(
             session=session,
             room_id=room_id,
             user_id=current_user.id,
         )
 
-        if not is_member:
+        if permission == PaymentPermission.NOT_MEMBER:
             await callback.answer(
                 "❌ Вы больше не участник этой комнаты.",
                 show_alert=True,

@@ -1,9 +1,13 @@
-async def create_users_and_room(session, count=2):
+async def create_users_and_room(
+    session,
+    count=2,
+    telegram_id_start=1000,
+):
     from database.models import Room, RoomMember, User
 
     users = [
         User(
-            telegram_id=1000 + index,
+            telegram_id=telegram_id_start + index,
             first_name=f"User {index}",
         )
         for index in range(1, count + 1)
