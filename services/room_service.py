@@ -1,7 +1,6 @@
 from repositories.room_repository import RoomRepository
 from utils.code_generator import generate_room_code
 from sqlalchemy.ext.asyncio import AsyncSession
-from repositories.room_repository import RoomRepository
 
 
 class RoomService:

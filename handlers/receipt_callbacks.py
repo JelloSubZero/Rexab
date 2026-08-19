@@ -1,11 +1,9 @@
 from aiogram import Router, F
-from aiogram.types import CallbackQuery, FSInputFile, message
+from aiogram.types import CallbackQuery, message
 from aiogram.fsm.context import FSMContext
 from repositories.user_repository import UserRepository
 from database.session import AsyncSessionLocal
 
-from services.room_service import RoomService
-from services.qr_service import QRService
 
 from states.receipt_state import ReceiptState
 

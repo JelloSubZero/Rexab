@@ -11,9 +11,7 @@ from services.user_service import UserService
 from services.room_service import RoomService
 from services.room_member_service import RoomMemberService
 from services.room_view_service import RoomViewService
-from services.notification_service import NotificationService
 
-from repositories.user_repository import UserRepository
 
 
 router = Router()
@@ -69,14 +67,11 @@ async def start(
                 )
                 return
 
-            member = await RoomMemberService.join_room(
+            await RoomMemberService.join_room(
                 session=session,
                 room_id=room.id,
                 user_id=user.id,
             )
-
-            # здесь остаётся твоя текущая логика уведомления
-            # о новом участнике
 
             await RoomViewService.show_room(
                 bot=message.bot,

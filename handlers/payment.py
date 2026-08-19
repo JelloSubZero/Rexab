@@ -16,7 +16,6 @@ from services.payment_permission_service import (
 
 
 from database.session import AsyncSessionLocal
-from database.models import RoomPayment
 from services.split_bill_service import SplitBillService
 from services.room_payment_service import RoomPaymentService
 
@@ -25,7 +24,6 @@ from repositories.user_repository import UserRepository
 from states.payment_state import PaymentState
 from services.debt_service import DebtService
 
-from keyboards.payment_menu import payment_menu
 from keyboards.payment_manage_menu import payment_manage_menu
 
 

@@ -3,10 +3,8 @@ from aiogram.types import CallbackQuery
 from keyboards.debt_optimize_menu import debt_optimize_menu
 
 from database.session import AsyncSessionLocal
-from repositories.room_settlement_repository import RoomSettlementRepository
 
 from repositories.user_repository import UserRepository
-from keyboards.debt_optimize_menu import debt_optimize_menu
 
 from services.room_access_service import RoomAccessService
 from services.room_member_service import RoomMemberService

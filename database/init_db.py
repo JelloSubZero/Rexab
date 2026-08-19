@@ -1,8 +1,6 @@
 from database.session import engine
 from database.session import Base
-from pathlib import Path
 
-import database.models
 
 
 async def init_db():

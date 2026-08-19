@@ -1,7 +1,6 @@
 from datetime import UTC, datetime
 from sqlalchemy import UniqueConstraint
 
-from uuid import uuid4
 from enum import Enum
 from sqlalchemy import Float
 
@@ -11,13 +10,11 @@ from sqlalchemy.orm import relationship
 
 from sqlalchemy import BigInteger
 from sqlalchemy import DateTime
-from sqlalchemy import String
 
 from sqlalchemy.orm import Mapped
 from sqlalchemy.orm import mapped_column
 
 from database.session import Base
-from pathlib import Path
 
 
 class User(Base):

@@ -2,7 +2,6 @@ from sqlalchemy.ext.asyncio import (
     create_async_engine,
     async_sessionmaker,
 )
-from pathlib import Path
 
 from sqlalchemy.orm import DeclarativeBase
 
