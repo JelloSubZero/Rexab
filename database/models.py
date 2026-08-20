@@ -22,10 +22,23 @@ class User(Base):
 
     id: Mapped[int] = mapped_column(primary_key=True)
 
-    telegram_id: Mapped[int] = mapped_column(
+    telegram_id: Mapped[int | None] = mapped_column(
         BigInteger,
         unique=True,
         index=True,
+        nullable=True,
+    )
+
+    email: Mapped[str | None] = mapped_column(
+        String(255),
+        unique=True,
+        index=True,
+        nullable=True,
+    )
+
+    password_hash: Mapped[str | None] = mapped_column(
+        String(255),
+        nullable=True,
     )
 
     username: Mapped[str | None] = mapped_column(
@@ -52,6 +65,11 @@ class Room(Base):
         String(8),
         unique=True,
         index=True,
+    )
+
+    name: Mapped[str | None] = mapped_column(
+        String(100),
+        nullable=True,
     )
 
     owner_id: Mapped[int] = mapped_column(

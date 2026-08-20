@@ -1,8 +1,19 @@
-from database.session import engine
-from database.session import Base
+import asyncio
+from pathlib import Path
 
+from alembic import command
+from alembic.config import Config
+
+BASE_DIR = Path(__file__).resolve().parent.parent
+
+
+def _upgrade_to_head():
+    alembic_cfg = Config(str(BASE_DIR / "alembic.ini"))
+    command.upgrade(alembic_cfg, "head")
 
 
 async def init_db():
-    async with engine.begin() as conn:
-        await conn.run_sync(Base.metadata.create_all)
+    # alembic's upgrade() runs its own asyncio.run() internally, which
+    # can't be nested inside the bot's already-running event loop, so
+    # it's dispatched to a worker thread instead.
+    await asyncio.to_thread(_upgrade_to_head)

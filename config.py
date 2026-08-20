@@ -35,3 +35,26 @@ BOT_USERNAME = os.getenv(
     "BOT_USERNAME",
     "YourBotUsername",
 )
+
+# Секрет для подписи JWT веб-сессий. В проде обязателен собственный
+# случайный секрет (например: python -c "import secrets; print(secrets.token_hex(32))");
+# значение по умолчанию подходит только для локальной разработки.
+JWT_SECRET = os.getenv(
+    "JWT_SECRET",
+    "dev-insecure-secret-change-me",
+)
+
+JWT_ALGORITHM = "HS256"
+
+JWT_EXPIRE_MINUTES = int(
+    os.getenv("JWT_EXPIRE_MINUTES", "1440")
+)
+
+CORS_ORIGINS = [
+    origin.strip()
+    for origin in os.getenv(
+        "CORS_ORIGINS",
+        "http://localhost:3000",
+    ).split(",")
+    if origin.strip()
+]
