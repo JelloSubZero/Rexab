@@ -1,7 +1,6 @@
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from repositories.user_repository import UserRepository
-from services.auth_service import AuthService
 
 
 class UserService:
@@ -50,6 +49,11 @@ class UserService:
         if existing is not None:
             return None
 
+        # Imported lazily: bcrypt is a web-auth-only dependency, and
+        # the bot process (which also imports this module) never
+        # calls these two methods, so it shouldn't need it installed.
+        from services.auth_service import AuthService
+
         password_hash = AuthService.hash_password(password)
 
         return await UserRepository.create(
@@ -80,6 +84,8 @@ class UserService:
 
         if user is None or user.password_hash is None:
             return None
+
+        from services.auth_service import AuthService
 
         if not AuthService.verify_password(
             password,
