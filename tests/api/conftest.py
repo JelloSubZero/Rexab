@@ -42,8 +42,13 @@ async def client():
 
     app.dependency_overrides[get_session] = override_get_session
 
-    with TestClient(app) as test_client:
-        yield test_client
+    # Deliberately not using `with TestClient(app)`: that triggers
+    # FastAPI's lifespan, which now runs `alembic upgrade head`
+    # against the real configured DATABASE_URL. Tests use their own
+    # isolated in-memory schema instead, created above.
+    test_client = TestClient(app)
+
+    yield test_client
 
     app.dependency_overrides.clear()
     await engine.dispose()
