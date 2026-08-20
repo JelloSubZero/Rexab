@@ -9,9 +9,27 @@ const inter = Inter({
   subsets: ["latin"],
 });
 
+const title = "Rexab — Shared expenses, simplified.";
+const description =
+  "Track shared expenses, split costs and settle debts with roommates, friends and groups.";
+
 export const metadata: Metadata = {
-  title: "Rexab",
-  description: "Split expenses with your rooms",
+  title,
+  description,
+  openGraph: {
+    title,
+    description,
+    type: "website",
+    siteName: "Rexab",
+  },
+  twitter: {
+    card: "summary_large_image",
+    title,
+    description,
+  },
+  icons: {
+    icon: "/favicon.ico",
+  },
 };
 
 export default function RootLayout({

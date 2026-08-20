@@ -14,6 +14,9 @@
   --color-warning-bg: #fffbeb;
   --color-accent: #6366f1;
   --color-accent-hover: #4f46e5;
+  --color-dark: #0b1020;
+  --color-dark-border: #1f2438;
+  --color-dark-muted: #9aa1b9;
 }
 
 @theme inline {
@@ -30,6 +33,9 @@
   --color-warning-bg: var(--color-warning-bg);
   --color-accent: var(--color-accent);
   --color-accent-hover: var(--color-accent-hover);
+  --color-dark: var(--color-dark);
+  --color-dark-border: var(--color-dark-border);
+  --color-dark-muted: var(--color-dark-muted);
   --font-sans: var(--font-inter);
 }
 
