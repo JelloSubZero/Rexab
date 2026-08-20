@@ -17,6 +17,14 @@ from sqlalchemy.orm import mapped_column
 from database.session import Base
 
 
+def utcnow() -> datetime:
+    # Naive datetime representing UTC, matching the plain (non-tz)
+    # DateTime columns below - a tz-aware value here fails against
+    # Postgres/asyncpg ("can't subtract offset-naive and
+    # offset-aware datetimes") even though SQLite accepts it fine.
+    return datetime.now(UTC).replace(tzinfo=None)
+
+
 class User(Base):
     __tablename__ = "users"
 
@@ -52,7 +60,7 @@ class User(Base):
 
     created_at: Mapped[datetime] = mapped_column(
         DateTime,
-        default=lambda: datetime.now(UTC),
+        default=utcnow,
     )
 
 
@@ -83,7 +91,7 @@ class Room(Base):
 
     created_at: Mapped[datetime] = mapped_column(
         DateTime,
-        default=lambda: datetime.now(UTC)
+        default=utcnow
     )
 
     owner = relationship("User")
@@ -114,7 +122,7 @@ class Receipt(Base):
 
     created_at: Mapped[datetime] = mapped_column(
         DateTime,
-        default=lambda: datetime.now(UTC)
+        default=utcnow
     )
 
     room = relationship("Room")
@@ -136,7 +144,7 @@ class RoomMember(Base):
 
     joined_at: Mapped[datetime] = mapped_column(
         DateTime,
-        default=lambda: datetime.now(UTC),
+        default=utcnow,
     )
 
     __table_args__ = (
@@ -213,7 +221,7 @@ class RoomPayment(Base):
 
     created_at: Mapped[datetime] = mapped_column(
         DateTime,
-        default=lambda: datetime.now(UTC),
+        default=utcnow,
     )
 
     room = relationship("Room")
@@ -251,7 +259,7 @@ class RoomHistory(Base):
 
     created_at: Mapped[datetime] = mapped_column(
         DateTime,
-        default=lambda: datetime.now(UTC),
+        default=utcnow,
     )
 
     room = relationship("Room")
@@ -292,7 +300,7 @@ class RoomSettlement(Base):
 
     created_at: Mapped[datetime] = mapped_column(
         DateTime,
-        default=lambda: datetime.now(UTC),
+        default=utcnow,
         nullable=False,
     )
 
