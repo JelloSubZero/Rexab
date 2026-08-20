@@ -107,8 +107,10 @@ class RoomViewService:
         if not members_text:
             members_text = "Пока нет участников."
 
+        room_title = room.name or "Комната"
+
         text = f"""
-🏠 <b>Комната</b>
+🏠 <b>{room_title}</b>
 
 🔑 Код:
 <code>{room.code}</code>

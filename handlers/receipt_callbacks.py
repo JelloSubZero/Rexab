@@ -132,7 +132,7 @@ async def finish_receipts(
 
     msg = await callback.message.answer(
         f"""
-🏠 <b>Комната</b>
+🏠 <b>{room.name or 'Комната'}</b>
 
 🔑 Код:
 <code>{room.code}</code>

@@ -5,8 +5,6 @@ def main_menu():
     builder = ReplyKeyboardBuilder()
 
     builder.button(text="➕ Создать чек")
-    builder.button(text="📋 Мои чеки")
-    builder.button(text="⚙️ Настройки")
 
     builder.adjust(1)
 

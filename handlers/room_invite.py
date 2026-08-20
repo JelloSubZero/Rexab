@@ -1,6 +1,10 @@
+from urllib.parse import quote
+
 from aiogram import Router, F
 from aiogram.types import CallbackQuery, FSInputFile
+from aiogram.utils.keyboard import InlineKeyboardBuilder
 
+from config import BOT_USERNAME
 from database.session import AsyncSessionLocal
 
 from services.room_service import RoomService
@@ -85,6 +89,28 @@ async def room_invite(
     )
 
     # --------------------------------
+    # ССЫЛКА-ПРИГЛАШЕНИЕ И КНОПКА
+    # ОТПРАВИТЬ ДРУГУ
+    # --------------------------------
+
+    invite_link = f"https://t.me/{BOT_USERNAME}?start={room_code}"
+
+    share_text = f"Присоединяйся к комнате в Rexab: {invite_link}"
+
+    share_url = (
+        "https://t.me/share/url?"
+        f"url={quote(invite_link, safe='')}"
+        f"&text={quote(share_text, safe='')}"
+    )
+
+    builder = InlineKeyboardBuilder()
+
+    builder.button(
+        text="📤 Отправить другу",
+        url=share_url,
+    )
+
+    # --------------------------------
     # ОТПРАВЛЯЕМ ПРИГЛАШЕНИЕ
     # --------------------------------
 
@@ -94,10 +120,11 @@ async def room_invite(
             "📤 <b>Приглашение в комнату</b>\n\n"
             f"🔑 Код комнаты:\n"
             f"<code>{room_code}</code>\n\n"
-            "Отправьте друзьям QR-код "
-            "или сообщите код комнаты."
+            "Отправьте друзьям QR-код, поделитесь "
+            "кнопкой ниже или просто сообщите код."
         ),
         parse_mode="HTML",
+        reply_markup=builder.as_markup(),
     )
 
     # --------------------------------

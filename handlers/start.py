@@ -89,6 +89,11 @@ async def start(
         await session.commit()
 
     await message.answer(
-        f"Привет, {message.from_user.first_name}!",
+        f"👋 Привет, {message.from_user.first_name}!\n\n"
+        "Я помогу разделить общие расходы: загружай чеки "
+        "или добавляй платежи, а я сам посчитаю, кто кому "
+        "должен.\n\n"
+        "Начни с кнопки ниже 👇",
+        parse_mode="HTML",
         reply_markup=main_menu(),
     )

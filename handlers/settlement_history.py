@@ -338,7 +338,7 @@ async def settlement_history_back(
         # --------------------------------
 
         text = (
-            "🏠 <b>Комната</b>\n\n"
+            f"🏠 <b>{room.name or 'Комната'}</b>\n\n"
 
             "🔑 Код:\n"
             f"<code>{room.code}</code>\n\n"

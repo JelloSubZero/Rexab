@@ -10,13 +10,8 @@ def room_menu(
     builder = InlineKeyboardBuilder()
 
     builder.button(
-        text="📤 Пригласить",
-        callback_data=f"room_invite:{room_id}",
-    )
-
-    builder.button(
-        text="📄 Чеки",
-        callback_data=f"room_receipts:{room_id}",
+        text="💳 Платежи",
+        callback_data=f"payment_manage:{room_id}",
     )
 
     builder.button(
@@ -25,18 +20,13 @@ def room_menu(
     )
 
     builder.button(
-        text="🧮 Разделить счет",
-        callback_data=f"room_split:{room_id}",
+        text="📤 Пригласить",
+        callback_data=f"room_invite:{room_id}",
     )
 
     builder.button(
-        text="💸 Расчёт долгов",
-        callback_data=f"debt_calculate:{room_id}",
-    )
-
-    builder.button(
-        text="💳 Платежи",
-        callback_data=f"payment_manage:{room_id}",
+        text="📄 Чеки",
+        callback_data=f"room_receipts:{room_id}",
     )
 
     builder.button(
@@ -55,6 +45,6 @@ def room_menu(
             callback_data=f"room_close:{room_id}",
         )
 
-    builder.adjust(2, 2, 2, 1)
+    builder.adjust(1, 2, 2, 1, 1)
 
     return builder.as_markup()

@@ -2,7 +2,6 @@ from aiogram import Router, F, Bot
 from aiogram.types import CallbackQuery, Message
 from aiogram.fsm.context import FSMContext
 from aiogram.utils.keyboard import InlineKeyboardBuilder
-from keyboards.debt_result_menu import debt_result_menu
 from keyboards.payment_delete_menu import payment_delete_menu
 from services.room_member_service import RoomMemberService
 from services.room_history_service import RoomHistoryService
@@ -30,278 +29,41 @@ from keyboards.payment_manage_menu import payment_manage_menu
 router = Router()
 
 
-@router.callback_query(
-    F.data.startswith("payment_user:")
-)
-async def payment_user(
-    callback: CallbackQuery,
-    state: FSMContext,
-):
-    _, room_id_str, user_id_str = callback.data.split(":")
+def _payments_text(payments, split) -> str:
+    header = "💳 <b>Платежи комнаты</b>\n\n"
 
-    room_id = int(room_id_str)
-    user_id = int(user_id_str)
-
-    async with AsyncSessionLocal() as session:
-
-        current_user = await UserRepository.get_by_telegram_id(
-            session=session,
-            telegram_id=callback.from_user.id,
+    if split["count"]:
+        header += (
+            f"🧾 Расходы по чекам: <b>{split['total']:.2f} zł</b>\n"
+            f"👤 На человека: <b>{split['per_person']:.2f} zł</b>\n\n"
         )
 
-        if current_user is None:
-            await callback.answer(
-                "❌ Пользователь не найден.",
-                show_alert=True,
-            )
-            return
+    if not payments:
+        return header + "Пока нет добавленных платежей."
 
-        permission = await PaymentPermissionService.can_manage(
-            session=session,
-            room_id=room_id,
-            user_id=current_user.id,
-        )
-
-        if permission == PaymentPermission.NOT_MEMBER:
-            await callback.answer(
-                "❌ Вы больше не участник этой комнаты.",
-                show_alert=True,
-            )
-            return
-
-        data = await SplitBillService.calculate(
-            session=session,
-            room_id=room_id,
-        )
-
-        member = next(
-            (
-                member
-                for member in data["members"]
-                if member.user_id == user_id
-            ),
-            None,
-        )
-
-        if member is None:
-            await callback.answer(
-                "❌ Этот пользователь не является участником комнаты.",
-                show_alert=True,
-            )
-            return
-
-        payer_name = (
-            member.user.first_name
-            if member.user
-            else "Неизвестный"
-        )
-
-    await state.update_data(
-        room_id=room_id,
-        payer_id=user_id,
-        payer_name=payer_name,
-    )
-
-    await state.set_state(
-        PaymentState.waiting_amount
-    )
-
-    sent_message = await callback.message.answer(
-        f"""
-    💳 <b>Плательщик:</b> {payer_name}
-
-    Введите сумму, которую он оплатил.
-
-    Например:
-    <code>100</code>
-    """,
-        parse_mode="HTML",
-    )
-
-    async with AsyncSessionLocal() as session:
-
-        await RoomMessageService.save(
-            session=session,
-            room_id=room_id,
-            chat_id=sent_message.chat.id,
-            message_id=sent_message.message_id,
-        )
-
-    await callback.answer()
-
-
-@router.callback_query(
-    F.data.startswith("payment_done:")
-)
-
-async def payment_done(
-    callback: CallbackQuery,
-):
-    room_id = int(
-        callback.data.split(":")[1]
-    )
-
-    async with AsyncSessionLocal() as session:
-
-        current_user = await UserRepository.get_by_telegram_id(
-            session=session,
-            telegram_id=callback.from_user.id,
-        )
-
-        if current_user is None:
-            await callback.answer(
-                "❌ Пользователь не найден.",
-                show_alert=True,
-            )
-            return
-
-        permission = await PaymentPermissionService.can_manage(
-            session=session,
-            room_id=room_id,
-            user_id=current_user.id,
-        )
-
-        if permission == PaymentPermission.NOT_MEMBER:
-            await callback.answer(
-                "❌ Вы больше не участник этой комнаты.",
-                show_alert=True,
-            )
-            return
-
-        data = await SplitBillService.calculate(
-            session=session,
-            room_id=room_id,
-        )
-
-        members = data["members"]
-        total = data["total"]
-
-        payments = await RoomPaymentService.get_room_payments(
-            session=session,
-            room_id=room_id,
-        )
-
-        if not payments:
-            await callback.answer(
-                "❌ Добавьте хотя бы одного плательщика.",
-                show_alert=True,
-            )
-            return
-
-        paid_total = sum(
-            payment.amount
-            for payment in payments
-        )
-
-        remaining = total - paid_total
-
-        if remaining > 0.01:
-            await callback.answer(
-                f"⚠️ Осталось распределить "
-                f"{remaining:.2f} zł.",
-                show_alert=True,
-            )
-            return
-
-        transfers = DebtService.calculate(
-            members=members,
-            payments=payments,
-        )
-
-        users = {
-            member.user_id: (
-                member.user.first_name
-                if member.user
-                else "Неизвестный"
-            )
-            for member in members
-        }
-
-    # --------------------------------
-    # РАСХОДЫ
-    # --------------------------------
-
-    payments_text = ""
+    lines = ""
+    total = 0
 
     for payment in payments:
-
-        payer_name = users.get(
-            payment.user_id,
-            "Неизвестный",
+        name = (
+            payment.user.first_name
+            if payment.user
+            else "Неизвестный"
         )
+        description = payment.description or "Расход"
+        total += payment.amount
 
-        description = (
-            payment.description
-            if payment.description
-            else "Расход"
-        )
-
-        payments_text += (
-            f"• {description}: "
+        lines += (
+            f"• <b>{name}</b> — "
             f"<b>{payment.amount:.2f} zł</b>\n"
-            f"  💳 {payer_name}\n"
+            f"  📝 {description}\n\n"
         )
 
-    # --------------------------------
-    # ИТОГОВЫЕ ПЛАТЕЖИ
-    # --------------------------------
-
-    debts_text = ""
-
-    if transfers:
-
-        for transfer in transfers:
-
-            from_name = users.get(
-                transfer["from_user_id"],
-                "Неизвестный",
-            )
-
-            to_name = users.get(
-                transfer["to_user_id"],
-                "Неизвестный",
-            )
-
-            debts_text += (
-                f"• <b>{from_name}</b> → "
-                f"<b>{to_name}</b>: "
-                f"<b>{transfer['amount']:.2f} zł</b>\n"
-            )
-
-    else:
-
-        debts_text = (
-            "🎉 Никому ничего переводить не нужно.\n"
-        )
-
-    text = (
-        "🧮 <b>Итоговый расчёт</b>\n\n"
-
-        "🧾 <b>Расходы</b>\n\n"
-        f"{payments_text}\n"
-
-        "────────────────\n\n"
-
-        f"💰 <b>Общая сумма:</b> "
-        f"{total:.2f} zł\n"
-
-        f"👥 <b>Участников:</b> "
-        f"{len(members)}\n\n"
-
-        "💸 <b>Кто кому должен</b>\n\n"
-        f"{debts_text}"
-    )
-
-    await callback.message.edit_text(
-        text,
-        parse_mode="HTML",
-        reply_markup=debt_result_menu(
-            room_id=room_id,
-        ),
-    )
-
-    await callback.answer(
-        "✅ Расчёт завершён."
+    return (
+        header
+        + lines
+        + "────────────────\n"
+        + f"💰 Оплачено: <b>{total:.2f} zł</b>"
     )
 
 
@@ -578,49 +340,14 @@ async def payment_delete_confirm(
     # --------------------------------
     # ФОРМИРУЕМ ОБНОВЛЁННЫЙ СПИСОК
     # --------------------------------
+        split = await SplitBillService.calculate(
+            session=session,
+            room_id=room_id,
+        )
+
         await session.commit()
 
-
-    if not payments:
-
-        text = (
-            "💳 <b>Платежи комнаты</b>\n\n"
-            "Пока нет добавленных платежей."
-        )
-
-    else:
-
-        payments_text = ""
-        total = 0
-
-        for payment in payments:
-
-            name = (
-                payment.user.first_name
-                if payment.user
-                else "Неизвестный"
-            )
-
-            description = (
-                payment.description
-                if payment.description
-                else "Расход"
-            )
-
-            total += payment.amount
-
-            payments_text += (
-                f"• <b>{name}</b> — "
-                f"<b>{payment.amount:.2f} zł</b>\n"
-                f"  📝 {description}\n\n"
-            )
-
-        text = (
-            "💳 <b>Платежи комнаты</b>\n\n"
-            f"{payments_text}"
-            "────────────────\n"
-            f"💰 Всего: <b>{total:.2f} zł</b>"
-        )
+    text = _payments_text(payments, split)
 
     await callback.message.edit_text(
         text,
@@ -634,7 +361,7 @@ async def payment_delete_confirm(
     await callback.answer(
         "✅ Платёж удалён"
     )
-    
+
 @router.callback_query(
     F.data.startswith("payment_manage:")
 )
@@ -679,46 +406,12 @@ async def payment_manage(
             room_id=room_id,
         )
 
-    # Если платежей нет
-    if not payments:
-        text = (
-            "💳 <b>Платежи комнаты</b>\n\n"
-            "Пока нет добавленных платежей."
+        split = await SplitBillService.calculate(
+            session=session,
+            room_id=room_id,
         )
 
-    else:
-        payments_text = ""
-
-        total = 0
-
-        for payment in payments:
-
-            name = (
-                payment.user.first_name
-                if payment.user
-                else "Неизвестный"
-            )
-
-            description = (
-                payment.description
-                if payment.description
-                else "Расход"
-            )
-
-            total += payment.amount
-
-            payments_text += (
-                f"• <b>{name}</b> — "
-                f"<b>{payment.amount:.2f} zł</b>\n"
-                f"  📝 {description}\n\n"
-            )
-
-        text = (
-            "💳 <b>Платежи комнаты</b>\n\n"
-            f"{payments_text}"
-            "────────────────\n"
-            f"💰 Всего: <b>{total:.2f} zł</b>"
-        )
+    text = _payments_text(payments, split)
 
     await callback.message.edit_text(
         text,
@@ -1135,39 +828,15 @@ async def payment_description(
         # --------------------------------
         # ФОРМИРУЕМ ФИНАЛЬНОЕ СООБЩЕНИЕ
         # --------------------------------
-    
 
-        payments_text = ""
-        total = 0
-
-        for payment in payments:
-
-            name = (
-                payment.user.first_name
-                if payment.user
-                else "Неизвестный"
-            )
-
-            payment_description = (
-                payment.description
-                if payment.description
-                else "Расход"
-            )
-
-            total += payment.amount
-
-            payments_text += (
-                f"• <b>{name}</b> — "
-                f"<b>{payment.amount:.2f} zł</b>\n"
-                f"  📝 {payment_description}\n\n"
-            )
+        split = await SplitBillService.calculate(
+            session=session,
+            room_id=room_id,
+        )
 
         text = (
             "✅ <b>Платёж добавлен</b>\n\n"
-            "💳 <b>Платежи комнаты</b>\n\n"
-            f"{payments_text}"
-            "────────────────\n"
-            f"💰 Всего: <b>{total:.2f} zł</b>"
+            + _payments_text(payments, split)
         )
 
         # --------------------------------

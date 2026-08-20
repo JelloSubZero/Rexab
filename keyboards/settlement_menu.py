@@ -18,6 +18,11 @@ def settlement_menu(
         ),
     )
 
+    builder.button(
+        text="⬅️ Назад",
+        callback_data=f"room_view:{room_id}",
+    )
+
     builder.adjust(1)
 
     return builder.as_markup()

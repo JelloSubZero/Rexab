@@ -151,7 +151,7 @@ async def room_back(
             )
 
     text = (
-        "🏠 <b>Комната</b>\n\n"
+        f"🏠 <b>{room.name or 'Комната'}</b>\n\n"
         f"🔑 Код:\n"
         f"<code>{room.code}</code>\n\n"
         f"💰 Общая сумма:\n"
@@ -312,6 +312,18 @@ async def room_close_confirm(
         # --------------------------------
 
         room.status = RoomStatus.CLOSED.value
+
+        await session.commit()
+
+        # --------------------------------
+        # ЧИСТИМ НАКОПИВШИЕСЯ СООБЩЕНИЯ
+        # --------------------------------
+
+        await RoomMessageService.delete_all(
+            bot=callback.bot,
+            session=session,
+            room_id=room_id,
+        )
 
         await session.commit()
 
