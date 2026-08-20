@@ -1,7 +1,7 @@
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from database.models import RoomMember
+from database.models import Room, RoomMember
 from sqlalchemy.orm import selectinload
 
 
@@ -55,6 +55,26 @@ class RoomMemberRepository:
             .where(
                 RoomMember.room_id == room_id,
             )
+        )
+
+        return list(result.scalars().all())
+
+    @staticmethod
+    async def get_rooms_for_user(
+        session: AsyncSession,
+        user_id: int,
+    ) -> list[Room]:
+
+        result = await session.execute(
+            select(Room)
+            .join(
+                RoomMember,
+                RoomMember.room_id == Room.id,
+            )
+            .where(
+                RoomMember.user_id == user_id,
+            )
+            .order_by(Room.created_at.desc())
         )
 
         return list(result.scalars().all())

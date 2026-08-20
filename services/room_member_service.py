@@ -66,6 +66,16 @@ class RoomMemberService:
         )
 
     @staticmethod
+    async def get_rooms_for_user(
+        session: AsyncSession,
+        user_id: int,
+    ):
+        return await RoomMemberRepository.get_rooms_for_user(
+            session=session,
+            user_id=user_id,
+        )
+
+    @staticmethod
     async def remove_member(
         session: AsyncSession,
         room_id: int,

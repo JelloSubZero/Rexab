@@ -14,6 +14,7 @@ from services.room_view_service import RoomViewService
 
 from keyboards.room_menu import room_menu
 from services.room_access_service import RoomAccessService
+from services.room_permission_service import RoomPermissionService
 
 from states.receipt_state import ReceiptState
 
@@ -203,8 +204,13 @@ async def room_close(
             )
             return
 
-        # Только владелец
-        if room.owner_id != current_user.id:
+        is_owner = await RoomPermissionService.is_owner(
+            session=session,
+            room_id=room_id,
+            user_id=current_user.id,
+        )
+
+        if not is_owner:
             await callback.answer(
                 "❌ Только владелец может закрыть комнату.",
                 show_alert=True,
@@ -273,7 +279,13 @@ async def room_close_confirm(
         # ТОЛЬКО ВЛАДЕЛЕЦ
         # --------------------------------
 
-        if room.owner_id != current_user.id:
+        is_owner = await RoomPermissionService.is_owner(
+            session=session,
+            room_id=room_id,
+            user_id=current_user.id,
+        )
+
+        if not is_owner:
             await callback.answer(
                 "❌ Только владелец может закрыть комнату.",
                 show_alert=True,
