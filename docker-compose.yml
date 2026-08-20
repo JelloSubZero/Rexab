@@ -1,0 +1,48 @@
+services:
+  db:
+    image: postgres:16-alpine
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: ${POSTGRES_USER:-rexab}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
+      POSTGRES_DB: ${POSTGRES_DB:-rexab}
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-rexab}"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+
+  api:
+    build:
+      context: .
+      dockerfile: deploy/Dockerfile.api
+    restart: unless-stopped
+    env_file: .env
+    depends_on:
+      db:
+        condition: service_healthy
+    ports:
+      - "127.0.0.1:8000:8000"
+    volumes:
+      - static_data:/app/static
+      - logs_data:/app/logs
+
+  bot:
+    build:
+      context: .
+      dockerfile: deploy/Dockerfile.bot
+    restart: unless-stopped
+    env_file: .env
+    depends_on:
+      db:
+        condition: service_healthy
+    volumes:
+      - static_data:/app/static
+      - logs_data:/app/logs
+
+volumes:
+  postgres_data:
+  static_data:
+  logs_data:

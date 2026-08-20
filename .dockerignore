@@ -1,0 +1,16 @@
+.git
+.venv
+.venv_verify
+frontend/node_modules
+frontend/.next
+__pycache__
+**/__pycache__
+*.pyc
+.pytest_cache
+logs/
+static/qr/*
+static/receipts/*
+*.db
+.env
+.env.*
+!.env.example
