@@ -1,3 +1,5 @@
+import logging
+
 from sqlalchemy.ext.asyncio import AsyncSession
 from repositories.room_view_repository import RoomViewRepository
 
@@ -11,6 +13,9 @@ from keyboards.closed_room_menu import closed_room_menu
 from services.debt_service import DebtService
 from services.settlement_service import SettlementService
 from services.room_payment_service import RoomPaymentService
+
+logger = logging.getLogger(__name__)
+
 
 class RoomViewService:
 
@@ -297,10 +302,10 @@ class RoomViewService:
             except TelegramBadRequest:
                 pass
 
-            except Exception as e:
-
-                print(
-                    f"Не удалось обновить комнату: {e}"
+            except Exception:
+                logger.warning(
+                    "Не удалось обновить комнату",
+                    exc_info=True,
                 )
 
     @staticmethod

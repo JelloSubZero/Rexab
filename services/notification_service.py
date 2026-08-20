@@ -1,7 +1,11 @@
+import logging
+
 from aiogram import Bot
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from services.room_message_service import RoomMessageService
+
+logger = logging.getLogger(__name__)
 
 
 class NotificationService:
@@ -49,12 +53,12 @@ class NotificationService:
                     message_id=sent_message.message_id,
                 )
 
-            except Exception as e:
-
-                print(
-                    "❌ Не удалось отправить "
-                    "уведомление о новом расходе "
-                    f"пользователю {telegram_id}: {e}"
+            except Exception:
+                logger.warning(
+                    "Не удалось отправить уведомление о новом "
+                    "расходе пользователю %s",
+                    telegram_id,
+                    exc_info=True,
                 )
 
     # ============================================================
@@ -100,12 +104,12 @@ class NotificationService:
                     message_id=sent_message.message_id,
                 )
 
-            except Exception as e:
-
-                print(
-                    "❌ Не удалось отправить "
-                    "уведомление об удалении расхода "
-                    f"пользователю {telegram_id}: {e}"
+            except Exception:
+                logger.warning(
+                    "Не удалось отправить уведомление об удалении "
+                    "расхода пользователю %s",
+                    telegram_id,
+                    exc_info=True,
                 )
 
     # ============================================================
@@ -148,12 +152,12 @@ class NotificationService:
                     message_id=sent_message.message_id,
                 )
 
-            except Exception as e:
-
-                print(
-                    "❌ Не удалось отправить "
-                    "уведомление о новом участнике "
-                    f"пользователю {telegram_id}: {e}"
+            except Exception:
+                logger.warning(
+                    "Не удалось отправить уведомление о новом "
+                    "участнике пользователю %s",
+                    telegram_id,
+                    exc_info=True,
                 )
 
     # ============================================================
@@ -196,12 +200,12 @@ class NotificationService:
                     message_id=sent_message.message_id,
                 )
 
-            except Exception as e:
-
-                print(
-                    "❌ Не удалось отправить "
-                    "уведомление об удалении участника "
-                    f"пользователю {telegram_id}: {e}"
+            except Exception:
+                logger.warning(
+                    "Не удалось отправить уведомление об удалении "
+                    "участника пользователю %s",
+                    telegram_id,
+                    exc_info=True,
                 )
 
     # ============================================================
@@ -283,12 +287,11 @@ class NotificationService:
                 message_id=sent_message.message_id,
             )
 
-        except Exception as e:
-
-            print(
-                "❌ Не удалось отправить "
-                f"уведомление пользователю "
-                f"{telegram_id}: {e}"
+        except Exception:
+            logger.warning(
+                "Не удалось отправить уведомление пользователю %s",
+                telegram_id,
+                exc_info=True,
             )
 
     # ============================================================
@@ -357,10 +360,9 @@ class NotificationService:
                 message_id=sent_message.message_id,
             )
 
-        except Exception as e:
-
-            print(
-                "❌ Не удалось отправить "
-                f"уведомление пользователю "
-                f"{telegram_id}: {e}"
+        except Exception:
+            logger.warning(
+                "Не удалось отправить уведомление пользователю %s",
+                telegram_id,
+                exc_info=True,
             )

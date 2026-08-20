@@ -1,3 +1,5 @@
+import logging
+
 from aiogram import Router, F
 from aiogram.types import CallbackQuery
 
@@ -17,6 +19,7 @@ from services.debt_service import DebtService
 
 from keyboards.settlement_menu import settlement_menu
 
+logger = logging.getLogger(__name__)
 
 router = Router()
 
@@ -266,11 +269,10 @@ async def settlement_create(
                 ),
             )
 
-        except Exception as e:
-
-            print(
-                "❌ Не удалось отправить "
-                f"уведомление получателю: {e}"
+        except Exception:
+            logger.warning(
+                "Не удалось отправить уведомление получателю",
+                exc_info=True,
             )
         # --------------------------------
         # УВЕДОМЛЯЕМ ДОЛЖНИКА
@@ -296,11 +298,10 @@ async def settlement_create(
                     parse_mode="HTML",
                 )
 
-            except Exception as e:
-
-                print(
-                    "❌ Не удалось отправить "
-                    f"уведомление должнику: {e}"
+            except Exception:
+                logger.warning(
+                    "Не удалось отправить уведомление должнику",
+                    exc_info=True,
                 )
 
         # --------------------------------
@@ -492,10 +493,10 @@ async def settlement_confirm(
                 parse_mode="HTML",
             )
 
-        except Exception as e:
-            print(
-                "❌ Не удалось отправить "
-                f"уведомление должнику: {e}"
+        except Exception:
+            logger.warning(
+                "Не удалось отправить уведомление должнику",
+                exc_info=True,
             )
 
         # ----------------------------------------------------

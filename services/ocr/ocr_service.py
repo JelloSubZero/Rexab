@@ -1,9 +1,13 @@
+import logging
+
 from services.ocr.engine import OCREngine
 from services.ocr.models import OCRResult, ReceiptData
 from services.ocr.normalizer import OCRNormalizer
 from services.ocr.parser import OCRParser
 from services.ocr.product_parser import ProductParser
 from services.ocr.total_extractor import TotalExtractor
+
+logger = logging.getLogger(__name__)
 
 
 class OCRService:
@@ -32,8 +36,7 @@ class OCRService:
         # Новый алгоритм определения общей суммы
         total = self.total_extractor.extract(image_path)
 
-        print("========== TOTAL ==========")
-        print(total)
+        logger.debug("Extracted receipt total: %s", total)
 
         receipt = ReceiptData(
             total=total,

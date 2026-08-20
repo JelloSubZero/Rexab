@@ -1,3 +1,5 @@
+import logging
+
 from aiogram import Router, F
 from aiogram.types import Message
 from aiogram.fsm.context import FSMContext
@@ -22,6 +24,7 @@ from services.ocr.ocr_service import OCRService
 
 from states.receipt_state import ReceiptState
 
+logger = logging.getLogger(__name__)
 
 router = Router()
 
@@ -230,7 +233,7 @@ async def receipt_handler(
 
     except Exception as e:
 
-        print(e)
+        logger.exception("Ошибка при обработке чека")
 
         # Ошибка также относится к текущему процессу комнаты,
         # но room_id может быть недоступен, поэтому просто

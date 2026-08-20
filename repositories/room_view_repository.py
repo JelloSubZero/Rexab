@@ -39,13 +39,6 @@ class RoomViewRepository:
 
         await session.flush()
 
-        print("===== ROOM VIEW =====")
-        print(f"room={room_id}")
-        print(f"user={user_id}")
-        print(f"chat={chat_id}")
-        print(f"message={message_id}")
-        print("=====================")
-
         return view
 
     @staticmethod

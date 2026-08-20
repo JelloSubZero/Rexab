@@ -1,3 +1,4 @@
+import logging
 import os
 import re
 import tempfile
@@ -7,6 +8,8 @@ import cv2
 from services.ocr.cropper import ImageCropper
 from services.ocr.engine import OCREngine
 from services.ocr.locator import OCRLocator
+
+logger = logging.getLogger(__name__)
 
 
 class TotalExtractor:
@@ -19,7 +22,7 @@ class TotalExtractor:
 
         area = self.locator.find_total_area(image_path)
 
-        print("AREA:", area)
+        logger.debug("Total area: %s", area)
 
         if area is None:
             return None
@@ -37,8 +40,7 @@ class TotalExtractor:
                 psm=11,
             )
 
-            print("===== TOTAL OCR =====")
-            print(repr(text))
+            logger.debug("Total OCR text: %r", text)
 
         finally:
             os.remove(temp_path)
@@ -53,7 +55,7 @@ class TotalExtractor:
             text,
         )
 
-        print("FOUND:", numbers)
+        logger.debug("Candidate numbers: %s", numbers)
 
         if not numbers:
             return None
@@ -65,7 +67,7 @@ class TotalExtractor:
                  .replace(",", ".")
         )
 
-        print("VALUE:", value)
+        logger.debug("Parsed value: %s", value)
 
         try:
             return float(value)

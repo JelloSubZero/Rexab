@@ -1,9 +1,13 @@
+import logging
+
 from aiogram import Bot
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from repositories.room_message_repository import (
     RoomMessageRepository,
 )
+
+logger = logging.getLogger(__name__)
 
 
 class RoomMessageService:
@@ -41,11 +45,11 @@ class RoomMessageService:
                     message_id=message.message_id,
                 )
 
-            except Exception as e:
-
-                print(
-                    f"Не удалось удалить сообщение "
-                    f"{message.message_id}: {e}"
+            except Exception:
+                logger.warning(
+                    "Не удалось удалить сообщение %s",
+                    message.message_id,
+                    exc_info=True,
                 )
 
         await RoomMessageRepository.delete_by_room(

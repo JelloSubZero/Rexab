@@ -1,3 +1,5 @@
+import logging
+
 from aiogram import Router, F
 from aiogram.types import Message, CallbackQuery
 from aiogram.fsm.context import FSMContext
@@ -17,6 +19,8 @@ from services.room_access_service import RoomAccessService
 from services.room_permission_service import RoomPermissionService
 
 from states.receipt_state import ReceiptState
+
+logger = logging.getLogger(__name__)
 
 router = Router()
 
@@ -376,10 +380,12 @@ async def room_close_confirm(
             except TelegramBadRequest:
                 pass
 
-            except Exception as e:
-                print(
+            except Exception:
+                logger.warning(
                     "Не удалось обновить закрытую комнату "
-                    f"для пользователя {room_view.user_id}: {e}"
+                    "для пользователя %s",
+                    room_view.user_id,
+                    exc_info=True,
                 )
 
             await session.commit()

@@ -1,6 +1,9 @@
+import logging
+
 from aiogram import Bot, Dispatcher
 
 from config import BOT_TOKEN
+from logging_config import setup_logging
 
 from database.init_db import init_db
 
@@ -21,8 +24,12 @@ from handlers.settlement_history import (
     router as settlement_history_router,
 )
 
+logger = logging.getLogger(__name__)
+
 
 async def main():
+    setup_logging()
+
     # Создаем таблицы
     await init_db()
 
@@ -47,7 +54,7 @@ async def main():
     dp.include_router(receipt_router)
     dp.include_router(receipt_callbacks_router)
     dp.include_router(room_view_router)
-    print("✅ Rexab started")
+    logger.info("Rexab started")
 
     # Запускаем бота
     await dp.start_polling(bot)

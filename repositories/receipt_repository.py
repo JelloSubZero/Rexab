@@ -40,25 +40,11 @@ class ReceiptRepository:
 
         receipts = result.scalars().all()
 
-        print("\n========== RECEIPTS ==========")
-        print(f"Room ID: {room_id}")
-        print(f"Количество чеков: {len(receipts)}")
-
         total = 0.0
 
         for receipt in receipts:
-
-            print(
-                f"id={receipt.id}, "
-                f"room={receipt.room_id}, "
-                f"total={receipt.total}"
-            )
-
             if receipt.total is not None:
                 total += receipt.total
-
-        print(f"ИТОГО: {total}")
-        print("==============================\n")
 
         return total
 

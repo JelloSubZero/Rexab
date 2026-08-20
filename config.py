@@ -58,3 +58,5 @@ CORS_ORIGINS = [
     ).split(",")
     if origin.strip()
 ]
+
+LOG_LEVEL = os.getenv("LOG_LEVEL", "INFO").upper()
