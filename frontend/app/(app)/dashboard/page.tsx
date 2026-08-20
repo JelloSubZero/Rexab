@@ -11,6 +11,7 @@ import { RoomCard } from "@/components/RoomCard";
 import { CreateRoomDialog } from "@/components/CreateRoomDialog";
 import { JoinRoomDialog } from "@/components/JoinRoomDialog";
 import { formatSignedMoney } from "@/lib/format";
+import { aggregateDashboardTotals } from "@/lib/dashboard-totals";
 import type { Room } from "@/types/api";
 
 interface RoomWithBalance {
@@ -53,17 +54,9 @@ export default function DashboardPage() {
     loadRooms();
   }, [loadRooms]);
 
-  const totals = (rooms ?? []).reduce(
-    (acc, { balance }) => {
-      if (balance === null) return acc;
-      if (balance > 0) acc.youAreOwed += balance;
-      if (balance < 0) acc.youOwe += -balance;
-      return acc;
-    },
-    { youOwe: 0, youAreOwed: 0 },
+  const { youOwe, youAreOwed, netBalance } = aggregateDashboardTotals(
+    rooms ?? [],
   );
-
-  const netBalance = totals.youAreOwed - totals.youOwe;
 
   return (
     <div className="mx-auto flex max-w-4xl flex-col gap-8">
@@ -86,13 +79,13 @@ export default function DashboardPage() {
         <div className="grid grid-cols-1 gap-4 sm:grid-cols-3">
           <StatTile
             label="You owe"
-            value={formatSignedMoney(-totals.youOwe)}
-            tone={totals.youOwe > 0 ? "negative" : "neutral"}
+            value={formatSignedMoney(-youOwe)}
+            tone={youOwe > 0 ? "negative" : "neutral"}
           />
           <StatTile
             label="Owed to you"
-            value={formatSignedMoney(totals.youAreOwed)}
-            tone={totals.youAreOwed > 0 ? "positive" : "neutral"}
+            value={formatSignedMoney(youAreOwed)}
+            tone={youAreOwed > 0 ? "positive" : "neutral"}
           />
           <StatTile
             label="Balance"
