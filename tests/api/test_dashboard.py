@@ -82,6 +82,13 @@ def test_dashboard_reflects_real_balances(client):
 
     assert owner_dashboard["balance"] == 50
     assert owner_dashboard["you_are_owed"] == 50
+    assert owner_dashboard["transfers"] == [
+        {
+            "from_user_id": member_id,
+            "to_user_id": owner_id,
+            "amount": 50,
+        }
+    ]
     assert owner_dashboard["you_owe"] == 0
     assert owner_dashboard["members_count"] == 2
 

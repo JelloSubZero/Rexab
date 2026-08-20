@@ -5,7 +5,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from api.dependencies import get_current_user, get_session
 from api.errors import ApiError
-from api.schemas.dashboard import DashboardResponse
+from api.schemas.dashboard import DashboardResponse, TransferItem
 from api.schemas.payment import PaymentResponse
 from database.models import User
 from services.debt_service import DebtService
@@ -105,5 +105,13 @@ async def get_dashboard(
         recent_payments=[
             PaymentResponse.from_payment(payment)
             for payment in recent_payments
+        ],
+        transfers=[
+            TransferItem(
+                from_user_id=transfer["from_user_id"],
+                to_user_id=transfer["to_user_id"],
+                amount=float(transfer["amount"]),
+            )
+            for transfer in details["transfers"]
         ],
     )
