@@ -1,5 +1,5 @@
 from aiogram import Router, F
-from aiogram.types import CallbackQuery, message
+from aiogram.types import CallbackQuery
 from aiogram.fsm.context import FSMContext
 from repositories.user_repository import UserRepository
 from database.session import AsyncSessionLocal
@@ -7,18 +7,17 @@ from database.session import AsyncSessionLocal
 
 from states.receipt_state import ReceiptState
 
-from keyboards.room_menu import room_menu
-
 from services.receipt_permission_service import (
     ReceiptPermission,
     ReceiptPermissionService,
 )
-from services.room_view_service import RoomViewService
+from services.room_service import RoomService
+from services.receipt_service import ReceiptService
+from services.room_member_service import RoomMemberService
+from services.anchor_service import AnchorService, build_menu_screen
 
 
 router = Router()
-
-
 
 
 @router.callback_query(
@@ -61,17 +60,23 @@ async def add_receipt(
             )
             return
 
-    await state.update_data(
-        room_id=room_id,
-    )
+        await state.update_data(
+            room_id=room_id,
+        )
 
-    await state.set_state(
-        ReceiptState.waiting_receipt,
-    )
+        await state.set_state(
+            ReceiptState.waiting_receipt,
+        )
 
-    await callback.message.answer(
-        "📷 Отправьте следующий чек."
-    )
+        await AnchorService.render(
+            bot=callback.bot,
+            session=session,
+            room_id=room_id,
+            user_id=user.id,
+            text="📷 Отправьте следующий чек.",
+        )
+
+        await session.commit()
 
     await callback.answer()
 
@@ -91,8 +96,9 @@ async def finish_receipts(
         )
 
         if user is None:
-            await message.answer(
-                "❌ Пользователь не найден."
+            await callback.answer(
+                "❌ Пользователь не найден.",
+                show_alert=True,
             )
             await state.clear()
             return
@@ -104,64 +110,42 @@ async def finish_receipts(
         )
 
         if permission == ReceiptPermission.NOT_MEMBER:
-            await message.answer(
-                "❌ Вы больше не участник этой комнаты."
+            await callback.answer(
+                "❌ Вы больше не участник этой комнаты.",
+                show_alert=True,
             )
             await state.clear()
             return
 
-        room_data = await RoomViewService.build(
+        room = await RoomService.get_by_id(
             session=session,
             room_id=room_id,
         )
 
-    room = room_data["room"]
-    total = room_data["total"] or 0
-    members = room_data["members"]
-
-    members_text = ""
-
-    for index, member in enumerate(members, start=1):
-
-        name = member.user.first_name
-
-        if member.user_id == room.owner_id:
-            name += " 👑"
-
-        members_text += f"{index}. {name}\n"
-
-    msg = await callback.message.answer(
-        f"""
-🏠 <b>{room.name or 'Комната'}</b>
-
-🔑 Код:
-<code>{room.code}</code>
-
-💰 Общая сумма:
-<b>{total:.2f} zł</b>
-
-👥 Участников: {len(members)}
-
-{members_text}
-""",
-        parse_mode="HTML",
-        reply_markup=room_menu(room.id),
-    )
-
-    # Сохраняем экран комнаты владельца
-    async with AsyncSessionLocal() as session:
-
-        owner = await UserRepository.get_by_telegram_id(
+        total = await ReceiptService.get_room_total(
             session=session,
-            telegram_id=callback.from_user.id,
+            room_id=room_id,
         )
 
-        await RoomViewService.save_message(
+        members = await RoomMemberService.get_members(
             session=session,
-            room_id=room.id,
-            user_id=owner.id,
-            chat_id=callback.message.chat.id,
-            message_id=msg.message_id,
+            room_id=room_id,
+        )
+
+        text, keyboard = build_menu_screen(
+            room=room,
+            total=total or 0,
+            members=members,
+            is_owner=(room.owner_id == user.id),
+        )
+
+        await AnchorService.render(
+            bot=callback.bot,
+            session=session,
+            room_id=room_id,
+            user_id=user.id,
+            text=text,
+            keyboard=keyboard,
         )
 
         await session.commit()

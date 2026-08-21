@@ -10,10 +10,9 @@ from services.receipt_permission_service import (
 
 from repositories.user_repository import UserRepository
 
-from services.room_view_service import RoomViewService
-from services.room_message_service import RoomMessageService
-
-from keyboards.receipt_menu import receipt_menu
+from services.room_service import RoomService
+from services.room_member_service import RoomMemberService
+from services.anchor_service import AnchorService, build_menu_screen
 
 from config import RECEIPTS_DIR
 
@@ -137,9 +136,6 @@ async def receipt_handler(
 
             if result.receipt.total is None:
 
-                # Фиксируем Receipt,
-                # потому что его ID нужен
-                # следующему FSM-состоянию.
                 await session.commit()
 
                 await state.update_data(
@@ -151,77 +147,81 @@ async def receipt_handler(
                     ReceiptState.waiting_total
                 )
 
-                sent_message = await message.answer(
-                    "❌ Не удалось определить сумму чека.\n\n"
-                    "Введите общую сумму вручную.\n\n"
-                    "Например:\n"
-                    "<code>123.45</code>",
-                    parse_mode="HTML",
+                await AnchorService.render(
+                    bot=message.bot,
+                    session=session,
+                    room_id=room_id,
+                    user_id=user.id,
+                    text=(
+                        "❌ Не удалось определить сумму чека.\n\n"
+                        "Введите общую сумму вручную.\n\n"
+                        "Например:\n"
+                        "<code>123.45</code>"
+                    ),
                 )
 
-                # Сохраняем сообщение в room_messages
-                async with AsyncSessionLocal() as message_session:
+                await session.commit()
 
-                    await RoomMessageService.save(
-                        session=message_session,
-                        room_id=room_id,
-                        chat_id=sent_message.chat.id,
-                        message_id=sent_message.message_id,
-                    )
+            try:
+                await message.delete()
+            except Exception:
+                logger.warning(
+                    "Не удалось удалить сообщение с чеком",
+                    exc_info=True,
+                )
 
-                    await message_session.commit()
-
+            if result.receipt.total is None:
                 return
 
             # --------------------------------
-            # ПОЛУЧАЕМ ОБЩУЮ СУММУ КОМНАТЫ
+            # ОБНОВЛЯЕМ ЭКРАНЫ ВСЕХ УЧАСТНИКОВ
             # --------------------------------
+
+            room = await RoomService.get_by_id(
+                session=session,
+                room_id=room_id,
+            )
 
             room_total = await ReceiptService.get_room_total(
                 session=session,
                 room_id=room_id,
             )
 
-            # --------------------------------
-            # ОБНОВЛЯЕМ ОСНОВНОЙ ЭКРАН КОМНАТЫ
-            # --------------------------------
+            members = await RoomMemberService.get_members(
+                session=session,
+                room_id=room_id,
+            )
 
-            await RoomViewService.refresh_room(
+            banner = (
+                "✅ Чек добавлен: "
+                f"{result.receipt.total:.2f} zł"
+            )
+
+            async def render_menu_for(member_user_id):
+                return build_menu_screen(
+                    room=room,
+                    total=room_total,
+                    members=members,
+                    is_owner=(member_user_id == room.owner_id),
+                    banner=banner if member_user_id == user.id else None,
+                )
+
+            await AnchorService.broadcast(
                 bot=message.bot,
                 session=session,
                 room_id=room_id,
+                render_fn=render_menu_for,
             )
-
-            # --------------------------------
-            # СООБЩЕНИЕ О ДОБАВЛЕНИИ ЧЕКА
-            # --------------------------------
-
-            sent_message = await message.answer(
-                "✅ <b>Чек добавлен.</b>\n\n"
-                f"🧾 Сумма этого чека: "
-                f"<b>{result.receipt.total:.2f} zł</b>\n"
-                f"💰 Общая сумма комнаты: "
-                f"<b>{room_total:.2f} zł</b>",
-                parse_mode="HTML",
-                reply_markup=receipt_menu(room_id),
-            )
-
-            # --------------------------------
-            # СОХРАНЯЕМ MESSAGE_ID
-            # --------------------------------
-
-            await RoomMessageService.save(
-                session=session,
-                room_id=room_id,
-                chat_id=sent_message.chat.id,
-                message_id=sent_message.message_id,
-            )
-
-            # --------------------------------
-            # ФИКСИРУЕМ ТРАНЗАКЦИЮ
-            # --------------------------------
 
             await session.commit()
+
+        try:
+            await message.delete()
+        except Exception:
+            logger.warning(
+                "Не удалось удалить сообщение с чеком",
+                exc_info=True,
+            )
 
         # --------------------------------
         # СЛЕДУЮЩИЙ ЧЕК
@@ -277,17 +277,17 @@ async def manual_total(
 
         return
 
-    # --------------------------------
-    # ПОЛУЧАЕМ ДАННЫЕ FSM
-    # --------------------------------
-
     data = await state.get_data()
 
     receipt_id = data.get(
         "receipt_id"
     )
 
-    if receipt_id is None:
+    room_id = data.get(
+        "room_id"
+    )
+
+    if receipt_id is None or room_id is None:
 
         await message.answer(
             "❌ Чек не найден."
@@ -297,24 +297,7 @@ async def manual_total(
 
         return
 
-    # --------------------------------
-    # ОБНОВЛЯЕМ ЧЕК
-    # --------------------------------
-
     async with AsyncSessionLocal() as session:
-
-        receipt = await ReceiptService.update_total(
-            session=session,
-            receipt_id=receipt_id,
-            total=total,
-        )
-
-        if receipt is None:
-            await message.answer(
-                "❌ Чек не найден."
-            )
-            await state.clear()
-            return
 
         user = await UserRepository.get_by_telegram_id(
             session=session,
@@ -328,88 +311,54 @@ async def manual_total(
             await state.clear()
             return
 
-        permission = await ReceiptPermissionService.can_manage(
+        await ReceiptService.update_total(
             session=session,
-            room_id=receipt.room_id,
-            user_id=user.id,
+            receipt_id=receipt_id,
+            total=total,
         )
 
-        if permission == ReceiptPermission.NOT_MEMBER:
-            await message.answer(
-                "❌ Вы больше не участник этой комнаты."
-            )
-            await state.clear()
-            return
-
-            await message.answer(
-                "❌ Чек не найден."
-            )
-
-            await state.clear()
-
-            return
-
-        room_total = (
-            await ReceiptService.get_room_total(
-                session=session,
-                room_id=receipt.room_id,
-            )
+        room = await RoomService.get_by_id(
+            session=session,
+            room_id=room_id,
         )
 
-        # --------------------------------
-        # ОБНОВЛЯЕМ ОСНОВНОЙ ЭКРАН КОМНАТЫ
-        # --------------------------------
+        room_total = await ReceiptService.get_room_total(
+            session=session,
+            room_id=room_id,
+        )
 
-        await RoomViewService.refresh_room(
+        members = await RoomMemberService.get_members(
+            session=session,
+            room_id=room_id,
+        )
+
+        banner = f"✅ Чек добавлен: {total:.2f} zł"
+
+        async def render_menu_for(member_user_id):
+            return build_menu_screen(
+                room=room,
+                total=room_total,
+                members=members,
+                is_owner=(member_user_id == room.owner_id),
+                banner=banner if member_user_id == user.id else None,
+            )
+
+        await AnchorService.broadcast(
             bot=message.bot,
             session=session,
-            room_id=receipt.room_id,
+            room_id=room_id,
+            render_fn=render_menu_for,
         )
-
-        # --------------------------------
-        # СООБЩЕНИЕ "СУММА СОХРАНЕНА"
-        # --------------------------------
-
-        sent_message = await message.answer(
-            "✅ <b>Сумма сохранена.</b>\n\n"
-            f"🧾 Сумма этого чека: "
-            f"<b>{total:.2f} zł</b>\n"
-            f"💰 Общая сумма комнаты: "
-            f"<b>{room_total:.2f} zł</b>",
-            parse_mode="HTML",
-            reply_markup=receipt_menu(
-                receipt.room_id
-            ),
-        )
-
-        # --------------------------------
-        # СОХРАНЯЕМ MESSAGE_ID
-        # --------------------------------
-
-        await RoomMessageService.save(
-            session=session,
-            room_id=receipt.room_id,
-            chat_id=sent_message.chat.id,
-            message_id=sent_message.message_id,
-        )
-
-        # --------------------------------
-        # ФИКСИРУЕМ ТРАНЗАКЦИЮ
-        # --------------------------------
 
         await session.commit()
 
-    # --------------------------------
-    # СОХРАНЯЕМ ROOM_ID В FSM
-    # --------------------------------
-
-    await state.update_data(
-        room_id=receipt.room_id,
-    )
-
-    # --------------------------------
-    # СНОВА ЖДЁМ ФОТО ЧЕКА
-    # --------------------------------
+    try:
+        await message.delete()
+    except Exception:
+        logger.warning(
+            "Не удалось удалить сообщение с суммой",
+            exc_info=True,
+        )
 
     await state.set_state(
         ReceiptState.waiting_receipt
