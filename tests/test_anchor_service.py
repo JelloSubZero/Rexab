@@ -223,3 +223,64 @@ async def test_ping_swallows_send_failures(session):
         chat_id=42,
         text="🔔 hi",
     )
+
+
+from services.anchor_service import (
+    build_members_list_text,
+    build_menu_screen,
+    build_members_screen,
+)
+
+
+async def test_build_members_list_text_marks_the_owner(session):
+    users, room, members = await create_users_and_room(session, count=2)
+
+    text = build_members_list_text(members, room.owner_id)
+
+    assert f"1. {users[0].first_name} 👑" in text
+    assert f"2. {users[1].first_name}" in text
+    assert "👑" not in text.splitlines()[1]
+
+
+async def test_build_members_list_text_empty(session):
+    assert build_members_list_text([], owner_id=1) == "Пока нет участников."
+
+
+async def test_build_menu_screen_contains_code_and_total(session):
+    users, room, members = await create_users_and_room(session, count=2)
+
+    text, keyboard = build_menu_screen(
+        room=room,
+        total=45.5,
+        members=members,
+        is_owner=True,
+    )
+
+    assert room.code in text
+    assert "45.50 zł" in text
+    assert "Участников: 2" in text
+    assert keyboard is not None
+
+
+async def test_build_menu_screen_includes_banner(session):
+    users, room, members = await create_users_and_room(session, count=1)
+
+    text, _ = build_menu_screen(
+        room=room,
+        total=10.0,
+        members=members,
+        is_owner=True,
+        banner="✅ Чек добавлен: 10.00 zł",
+    )
+
+    assert text.startswith("✅ Чек добавлен: 10.00 zł")
+
+
+async def test_build_members_screen(session):
+    users, room, members = await create_users_and_room(session, count=2)
+
+    text, keyboard = build_members_screen(room=room, members=members)
+
+    assert "Участники комнаты" in text
+    assert "Всего: <b>2</b>" in text
+    assert keyboard is not None

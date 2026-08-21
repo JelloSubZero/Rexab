@@ -3,10 +3,67 @@ import logging
 from aiogram.exceptions import TelegramBadRequest
 
 from repositories.room_view_repository import RoomViewRepository
+from keyboards.room_menu import room_menu
+from keyboards.room_members_menu import room_members_menu
 
 logger = logging.getLogger(__name__)
 
 _NOT_MODIFIED = "message is not modified"
+
+
+def build_members_list_text(members, owner_id) -> str:
+
+    lines = ""
+
+    for index, member in enumerate(members, start=1):
+
+        name = (
+            member.user.first_name
+            if member.user
+            else "Неизвестный"
+        )
+
+        if member.user_id == owner_id:
+            name += " 👑"
+
+        lines += f"{index}. {name}\n"
+
+    return lines or "Пока нет участников."
+
+
+def build_menu_screen(room, total, members, is_owner, banner=None):
+
+    banner_line = f"{banner}\n\n" if banner else ""
+    members_text = build_members_list_text(members, room.owner_id)
+
+    text = (
+        f"{banner_line}"
+        f"🏠 <b>{room.name or 'Комната'}</b>\n\n"
+        f"🔑 Код:\n<code>{room.code}</code>\n\n"
+        f"💰 Общая сумма:\n<b>{total:.2f} zł</b>\n\n"
+        f"👥 Участников: {len(members)}\n\n"
+        f"{members_text}"
+    )
+
+    return text, room_menu(room.id, is_owner=is_owner)
+
+
+def build_members_screen(room, members):
+
+    members_text = build_members_list_text(members, room.owner_id)
+
+    text = (
+        "👥 <b>Участники комнаты</b>\n\n"
+        f"{members_text}\n"
+        "───────────────\n"
+        f"👥 Всего: <b>{len(members)}</b>"
+    )
+
+    return text, room_members_menu(
+        room_id=room.id,
+        members=members,
+        owner_id=room.owner_id,
+    )
 
 
 class AnchorService:
