@@ -7,7 +7,7 @@ from database.session import AsyncSessionLocal
 
 from repositories.user_repository import UserRepository
 
-from services.room_message_service import RoomMessageService
+from services.room_service import RoomService
 from services.room_member_service import RoomMemberService
 from services.settlement_permission_service import (
     SettlementPermission,
@@ -16,8 +16,7 @@ from services.settlement_permission_service import (
 from services.settlement_service import SettlementService
 from services.room_payment_service import RoomPaymentService
 from services.debt_service import DebtService
-
-from keyboards.settlement_menu import settlement_menu
+from services.anchor_service import AnchorService, build_closed_screen
 
 logger = logging.getLogger(__name__)
 
@@ -244,75 +243,96 @@ async def settlement_create(
         )
 
         # --------------------------------
-        # ОТПРАВЛЯЕМ ПОЛУЧАТЕЛЮ
+        # ОБНОВЛЯЕМ ЯКОРНЫЕ СООБЩЕНИЯ ОБЕИХ СТОРОН
         # --------------------------------
 
-        try:
+        room = await RoomService.get_by_id(
+            session=session,
+            room_id=room_id,
+        )
 
-            await RoomMessageService.send(
+        if room is None:
+            await callback.answer(
+                "❌ Комната не найдена.",
+                show_alert=True,
+            )
+            return
+
+        confirmed_settlements = (
+            await SettlementService.get_confirmed_for_room(
+                session=session,
+                room_id=room_id,
+            )
+        )
+
+        transfers = DebtService.calculate(
+            members=members,
+            payments=payments,
+            settlements=confirmed_settlements,
+        )
+
+        async def render_closed_for(member_user_id):
+
+            pending_for_debtor = (
+                await SettlementService.get_pending_for_debtor(
+                    session=session,
+                    room_id=room_id,
+                    user_id=member_user_id,
+                )
+            )
+
+            pending_for_receiver = (
+                await SettlementService.get_pending_for_receiver(
+                    session=session,
+                    room_id=room_id,
+                    user_id=member_user_id,
+                )
+            )
+
+            return build_closed_screen(
+                room=room,
+                members=members,
+                transfers=transfers,
+                user_id=member_user_id,
+                pending_for_debtor=pending_for_debtor,
+                pending_for_receiver=pending_for_receiver,
+            )
+
+        for member_user_id in (from_user_id, to_user_id):
+            text_for_member, keyboard_for_member = await render_closed_for(
+                member_user_id
+            )
+
+            await AnchorService.render(
                 bot=bot,
                 session=session,
                 room_id=room_id,
+                user_id=member_user_id,
+                text=text_for_member,
+                keyboard=keyboard_for_member,
+            )
+
+        # --------------------------------
+        # PUSH-УВЕДОМЛЕНИЕ ПОЛУЧАТЕЛЮ
+        # --------------------------------
+
+        if receiver is not None:
+            await AnchorService.ping(
+                bot=bot,
                 chat_id=receiver.telegram_id,
                 text=(
-                    "💰 <b>Ожидается погашение</b>\n\n"
-                    f"👤 <b>{debtor_name}</b> "
-                    "должен вам:\n\n"
-                    f"💵 <b>{actual_amount:.2f} zł</b>\n\n"
-                    "После получения денег "
-                    "подтвердите погашение:"
-                ),
-                parse_mode="HTML",
-                reply_markup=settlement_menu(
-                    room_id=room_id,
-                    settlement_id=settlement.id,
+                    "🔔 <b>Ожидается погашение</b>\n\n"
+                    f"👤 <b>{debtor_name}</b> отметил(а), что "
+                    f"оплатил(а) вам <b>{actual_amount:.2f} zł</b>.\n\n"
+                    "Откройте комнату, чтобы подтвердить получение."
                 ),
             )
-
-        except Exception:
-            logger.warning(
-                "Не удалось отправить уведомление получателю",
-                exc_info=True,
-            )
-        # --------------------------------
-        # УВЕДОМЛЯЕМ ДОЛЖНИКА
-        # --------------------------------
-
-        if debtor is not None:
-
-            try:
-
-                await RoomMessageService.send(
-                    bot=bot,
-                    session=session,
-                    room_id=room_id,
-                    chat_id=debtor.telegram_id,
-                    text=(
-                        "💸 <b>Ожидается подтверждение</b>\n\n"
-                        f"Вы должны <b>{receiver_name}</b>:\n\n"
-                        f"💰 <b>{actual_amount:.2f} zł</b>\n\n"
-                        "После передачи денег "
-                        "получатель должен подтвердить "
-                        "погашение."
-                    ),
-                    parse_mode="HTML",
-                )
-
-            except Exception:
-                logger.warning(
-                    "Не удалось отправить уведомление должнику",
-                    exc_info=True,
-                )
 
         # --------------------------------
         # ФИКСИРУЕМ TRANSACTION
         # --------------------------------
 
         await session.commit()
-
-    # --------------------------------
-    # ОБНОВЛЯЕМ ЭКРАН
-    # --------------------------------
 
     await callback.answer(
         "✅ Ожидается подтверждение получателя."
@@ -330,18 +350,11 @@ async def settlement_confirm(
     callback: CallbackQuery,
     bot,
 ):
-    _, settlement_id_str, room_id_str = (
-        callback.data.split(":")
+    settlement_id = int(
+        callback.data.split(":")[1]
     )
 
-    settlement_id = int(settlement_id_str)
-    room_id = int(room_id_str)
-
     async with AsyncSessionLocal() as session:
-
-        # ----------------------------------------------------
-        # ТЕКУЩИЙ ПОЛЬЗОВАТЕЛЬ
-        # ----------------------------------------------------
 
         current_user = (
             await UserRepository.get_by_telegram_id(
@@ -357,9 +370,19 @@ async def settlement_confirm(
             )
             return
 
-        # ----------------------------------------------------
-        # ПРОВЕРКА ПРАВ
-        # ----------------------------------------------------
+        settlement = await SettlementService.get_by_id(
+            session=session,
+            settlement_id=settlement_id,
+        )
+
+        if settlement is None:
+            await callback.answer(
+                "❌ Погашение не найдено.",
+                show_alert=True,
+            )
+            return
+
+        room_id = settlement.room_id
 
         permission = await SettlementPermissionService.can_confirm(
             session=session,
@@ -397,53 +420,10 @@ async def settlement_confirm(
             )
             return
 
-        # ----------------------------------------------------
-        # ПОЛУЧАЕМ ПОГАШЕНИЕ
-        # ----------------------------------------------------
-
-        settlement = await SettlementService.get_by_id(
-            session=session,
-            settlement_id=settlement_id,
-        )
-
-        if settlement is None:
-            await callback.answer(
-                "❌ Погашение не найдено.",
-                show_alert=True,
-            )
-            return
-
-        # ----------------------------------------------------
-        # СОХРАНЯЕМ ДАННЫЕ ДО ПОДТВЕРЖДЕНИЯ
-        # ----------------------------------------------------
-
         debtor = await UserRepository.get_by_id(
             session=session,
             user_id=settlement.from_user_id,
         )
-
-        receiver = await UserRepository.get_by_id(
-            session=session,
-            user_id=settlement.to_user_id,
-        )
-
-        debtor_name = (
-            debtor.first_name
-            if debtor
-            else "Пользователь"
-        )
-
-        receiver_name = (
-            receiver.first_name
-            if receiver
-            else "Пользователь"
-        )
-
-        amount = float(settlement.amount)
-
-        # ----------------------------------------------------
-        # ПОДТВЕРЖДАЕМ ПОГАШЕНИЕ
-        # ----------------------------------------------------
 
         confirmed, status = (
             await SettlementService.confirm_settlement(
@@ -475,46 +455,125 @@ async def settlement_confirm(
             )
             return
 
-        # ----------------------------------------------------
-        # УВЕДОМЛЯЕМ ДОЛЖНИКА
-        # ----------------------------------------------------
+        # --------------------------------
+        # ОБНОВЛЯЕМ ЯКОРНЫЕ СООБЩЕНИЯ ОБЕИХ СТОРОН
+        # --------------------------------
 
-        try:
-            await bot.send_message(
+        room = await RoomService.get_by_id(
+            session=session,
+            room_id=room_id,
+        )
+
+        if room is None:
+            await callback.answer(
+                "❌ Комната не найдена.",
+                show_alert=True,
+            )
+            return
+
+        members = await RoomMemberService.get_members(
+            session=session,
+            room_id=room_id,
+        )
+
+        payments = await RoomPaymentService.get_room_payments(
+            session=session,
+            room_id=room_id,
+        )
+
+        confirmed_settlements = (
+            await SettlementService.get_confirmed_for_room(
+                session=session,
+                room_id=room_id,
+            )
+        )
+
+        transfers = DebtService.calculate(
+            members=members,
+            payments=payments,
+            settlements=confirmed_settlements,
+        )
+
+        async def render_closed_for(member_user_id):
+
+            pending_for_debtor = (
+                await SettlementService.get_pending_for_debtor(
+                    session=session,
+                    room_id=room_id,
+                    user_id=member_user_id,
+                )
+            )
+
+            pending_for_receiver = (
+                await SettlementService.get_pending_for_receiver(
+                    session=session,
+                    room_id=room_id,
+                    user_id=member_user_id,
+                )
+            )
+
+            return build_closed_screen(
+                room=room,
+                members=members,
+                transfers=transfers,
+                user_id=member_user_id,
+                pending_for_debtor=pending_for_debtor,
+                pending_for_receiver=pending_for_receiver,
+            )
+
+        for member_user_id in (settlement.from_user_id, settlement.to_user_id):
+            text_for_member, keyboard_for_member = await render_closed_for(
+                member_user_id
+            )
+
+            await AnchorService.render(
+                bot=bot,
+                session=session,
+                room_id=room_id,
+                user_id=member_user_id,
+                text=text_for_member,
+                keyboard=keyboard_for_member,
+            )
+
+        # --------------------------------
+        # PUSH-УВЕДОМЛЕНИЕ ДОЛЖНИКУ
+        # --------------------------------
+
+        if debtor is not None:
+            await AnchorService.ping(
+                bot=bot,
                 chat_id=debtor.telegram_id,
                 text=(
                     "✅ <b>Погашение подтверждено</b>\n\n"
-                    f"👤 <b>{receiver_name}</b> "
-                    "подтвердил получение денег.\n\n"
-                    f"💰 Сумма: "
-                    f"<b>{amount:.2f} zł</b>\n\n"
-                    "💸 Этот долг отмечен как погашенный."
+                    f"Получатель подтвердил получение "
+                    f"<b>{float(settlement.amount):.2f} zł</b>."
                 ),
-                parse_mode="HTML",
             )
 
-        except Exception:
-            logger.warning(
-                "Не удалось отправить уведомление должнику",
-                exc_info=True,
+        # --------------------------------
+        # ПРОВЕРЯЕМ, ПОЛНОСТЬЮ ЛИ ПОГАШЕНА КОМНАТА
+        # --------------------------------
+
+        total_debt = sum(
+            float(transfer["amount"])
+            for transfer in transfers
+        )
+
+        fully_settled = await SettlementService.is_room_fully_settled(
+            session=session,
+            room_id=room_id,
+            total_debt=total_debt,
+        )
+
+        if fully_settled and room.status == "closed":
+            await AnchorService.finalize(
+                bot=bot,
+                session=session,
+                room_id=room_id,
             )
 
-        # ----------------------------------------------------
-        # ОБНОВЛЯЕМ СООБЩЕНИЕ ПОЛУЧАТЕЛЯ
-        # ----------------------------------------------------
+        await session.commit()
 
-        await callback.message.edit_text(
-            (
-                "✅ <b>Погашение подтверждено</b>\n\n"
-                f"👤 <b>{debtor_name}</b> "
-                "передал вам деньги.\n\n"
-                f"💰 Сумма: "
-                f"<b>{amount:.2f} zł</b>\n\n"
-                "💚 Долг закрыт."
-            ),
-            parse_mode="HTML",
-        )
-
-        await callback.answer(
-            "✅ Деньги получены."
-        )
+    await callback.answer(
+        "✅ Деньги получены."
+    )
