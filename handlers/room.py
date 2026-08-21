@@ -7,16 +7,23 @@ from services.room_member_service import RoomMemberService
 from database.models import RoomStatus
 from keyboards.room_close_confirm_menu import room_close_confirm_menu
 from aiogram.exceptions import TelegramBadRequest
-from services.room_message_service import RoomMessageService
 
 from database.session import AsyncSessionLocal
 from repositories.user_repository import UserRepository
 from services.room_service import RoomService
-from services.room_view_service import RoomViewService
+from services.anchor_service import (
+    AnchorService,
+    build_closed_screen,
+    build_members_list_text,
+    build_menu_screen,
+)
 
 from keyboards.room_menu import room_menu
 from services.room_access_service import RoomAccessService
 from services.room_permission_service import RoomPermissionService
+from services.settlement_service import SettlementService
+from services.room_payment_service import RoomPaymentService
+from services.debt_service import DebtService
 
 from states.receipt_state import ReceiptState
 
@@ -62,25 +69,19 @@ async def create_room(
             ReceiptState.waiting_receipt,
         )
 
-        sent_message = await message.answer(
-            f"""
-    🏠 <b>Комната создана</b>
-
-    🔑 Код комнаты:
-    <code>{room.code}</code>
-
-    📸 Отправьте первый чек.
-
-    После загрузки чеков вы сможете пригласить участников.
-    """,
-            parse_mode="HTML",
-        )
-
-        await RoomMessageService.save(
+        await AnchorService.create(
+            bot=message.bot,
             session=session,
             room_id=room.id,
-            chat_id=sent_message.chat.id,
-            message_id=sent_message.message_id,
+            user_id=user.id,
+            chat_id=message.chat.id,
+            text=(
+                "🏠 <b>Комната создана</b>\n\n"
+                f"🔑 Код комнаты:\n<code>{room.code}</code>\n\n"
+                "📸 Отправьте первый чек.\n\n"
+                "После загрузки чеков вы сможете "
+                "пригласить участников."
+            ),
         )
 
         await session.commit()

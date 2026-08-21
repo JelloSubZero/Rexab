@@ -10,7 +10,8 @@ from keyboards.main_menu import main_menu
 from services.user_service import UserService
 from services.room_service import RoomService
 from services.room_member_service import RoomMemberService
-from services.room_view_service import RoomViewService
+from services.anchor_service import AnchorService, build_menu_screen
+from services.receipt_service import ReceiptService
 
 
 
@@ -73,12 +74,46 @@ async def start(
                 user_id=user.id,
             )
 
-            await RoomViewService.show_room(
+            total = await ReceiptService.get_room_total(
+                session=session,
+                room_id=room.id,
+            )
+
+            members = await RoomMemberService.get_members(
+                session=session,
+                room_id=room.id,
+            )
+
+            text, keyboard = build_menu_screen(
+                room=room,
+                total=total,
+                members=members,
+                is_owner=(room.owner_id == user.id),
+            )
+
+            await AnchorService.create(
                 bot=message.bot,
                 session=session,
-                chat_id=message.chat.id,
-                user_id=user.id,
                 room_id=room.id,
+                user_id=user.id,
+                chat_id=message.chat.id,
+                text=text,
+                keyboard=keyboard,
+            )
+
+            async def render_menu_for(member_user_id):
+                return build_menu_screen(
+                    room=room,
+                    total=total,
+                    members=members,
+                    is_owner=(member_user_id == room.owner_id),
+                )
+
+            await AnchorService.broadcast(
+                bot=message.bot,
+                session=session,
+                room_id=room.id,
+                render_fn=render_menu_for,
             )
 
             await session.commit()
