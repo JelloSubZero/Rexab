@@ -7,7 +7,9 @@ from database.session import AsyncSessionLocal
 from keyboards.room_receipts_menu import room_receipts_menu
 
 from services.receipt_service import ReceiptService
-from services.room_view_service import RoomViewService
+from services.room_service import RoomService
+from services.room_member_service import RoomMemberService
+from services.anchor_service import AnchorService, build_menu_screen
 from services.room_access_service import RoomAccessService
 from services.receipt_permission_service import (
     ReceiptPermission,
@@ -65,38 +67,43 @@ async def room_receipts(
             room_id=room_id,
         )
 
-    text = "📄 <b>Чеки комнаты</b>\n\n"
+        text = "📄 <b>Чеки комнаты</b>\n\n"
 
-    if receipts:
+        if receipts:
 
-        for receipt in receipts:
+            for receipt in receipts:
 
-            amount = (
-                f"{receipt.total:.2f} zł"
-                if receipt.total is not None
-                else "Неизвестно"
-            )
+                amount = (
+                    f"{receipt.total:.2f} zł"
+                    if receipt.total is not None
+                    else "Неизвестно"
+                )
 
-            text += (
-                f"🧾 Чек #{receipt.id}\n"
-                f"💰 {amount}\n\n"
-            )
+                text += (
+                    f"🧾 Чек #{receipt.id}\n"
+                    f"💰 {amount}\n\n"
+                )
 
-    else:
+        else:
 
-        text += "Чеков пока нет.\n\n"
+            text += "Чеков пока нет.\n\n"
 
-    text += (
-        "───────────────\n\n"
-        f"💰 Общая сумма:\n"
-        f"<b>{total:.2f} zł</b>"
-    )
+        text += (
+            "───────────────\n\n"
+            f"💰 Общая сумма:\n"
+            f"<b>{total:.2f} zł</b>"
+        )
 
-    await callback.message.edit_text(
-        text,
-        parse_mode="HTML",
-        reply_markup=room_receipts_menu(room_id),
-    )
+        await AnchorService.render(
+            bot=callback.bot,
+            session=session,
+            room_id=room_id,
+            user_id=current_user.id,
+            text=text,
+            keyboard=room_receipts_menu(room_id),
+        )
+
+        await session.commit()
 
     await callback.answer()
 
@@ -141,33 +148,38 @@ async def delete_receipt(
             room_id=room_id,
         )
 
-    builder = InlineKeyboardBuilder()
+        builder = InlineKeyboardBuilder()
 
-    for receipt in receipts:
+        for receipt in receipts:
 
-        amount = (
-            f"{receipt.total:.2f} zł"
-            if receipt.total is not None
-            else "Неизвестно"
-        )
+            amount = (
+                f"{receipt.total:.2f} zł"
+                if receipt.total is not None
+                else "Неизвестно"
+            )
+
+            builder.button(
+                text=f"🧾 #{receipt.id} • {amount}",
+                callback_data=f"delete_receipt_confirm:{receipt.id}",
+            )
 
         builder.button(
-            text=f"🧾 #{receipt.id} • {amount}",
-            callback_data=f"delete_receipt_confirm:{receipt.id}",
+            text="⬅️ Назад",
+            callback_data=f"room_receipts:{room_id}",
         )
 
-    builder.button(
-        text="⬅️ Назад",
-        callback_data=f"room_receipts:{room_id}",
-    )
+        builder.adjust(1)
 
-    builder.adjust(1)
+        await AnchorService.render(
+            bot=callback.bot,
+            session=session,
+            room_id=room_id,
+            user_id=current_user.id,
+            text="🗑 <b>Выберите чек для удаления</b>",
+            keyboard=builder.as_markup(),
+        )
 
-    await callback.message.edit_text(
-        "🗑 <b>Выберите чек для удаления</b>",
-        parse_mode="HTML",
-        reply_markup=builder.as_markup(),
-    )
+        await session.commit()
 
     await callback.answer()
 
@@ -252,13 +264,44 @@ async def delete_receipt_confirm(
             return
 
         # --------------------------------
-        # ОБНОВЛЯЕМ ОСНОВНОЙ ЭКРАН
+        # ОБНОВЛЯЕМ ЭКРАНЫ ВСЕХ УЧАСТНИКОВ
         # --------------------------------
 
-        await RoomViewService.refresh_room(
+        room = await RoomService.get_by_id(
+            session=session,
+            room_id=room_id,
+        )
+
+        if room is None:
+            await callback.answer(
+                "❌ Комната не найдена.",
+                show_alert=True,
+            )
+            return
+
+        room_total = await ReceiptService.get_room_total(
+            session=session,
+            room_id=room_id,
+        )
+
+        members = await RoomMemberService.get_members(
+            session=session,
+            room_id=room_id,
+        )
+
+        async def render_menu_for(member_user_id):
+            return build_menu_screen(
+                room=room,
+                total=room_total,
+                members=members,
+                is_owner=(member_user_id == room.owner_id),
+            )
+
+        await AnchorService.broadcast(
             bot=callback.bot,
             session=session,
             room_id=room_id,
+            render_fn=render_menu_for,
         )
 
         # --------------------------------
