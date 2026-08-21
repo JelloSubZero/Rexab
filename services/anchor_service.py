@@ -1,4 +1,5 @@
 import logging
+import os
 
 from aiogram.exceptions import TelegramBadRequest
 
@@ -6,6 +7,9 @@ from repositories.room_view_repository import RoomViewRepository
 from keyboards.room_menu import room_menu
 from keyboards.room_members_menu import room_members_menu
 from keyboards.closed_room_menu import closed_room_menu
+from services.receipt_service import ReceiptService
+from services.room_member_service import RoomMemberService
+from services.room_service import RoomService
 
 logger = logging.getLogger(__name__)
 
@@ -259,6 +263,51 @@ class AnchorService:
                 text=text,
                 keyboard=keyboard,
             )
+
+    @staticmethod
+    async def finalize(bot, session, room_id: int):
+
+        members = await RoomMemberService.get_members(
+            session=session,
+            room_id=room_id,
+        )
+
+        text, keyboard = build_settled_screen()
+
+        for member in members:
+            await AnchorService.render(
+                bot=bot,
+                session=session,
+                room_id=room_id,
+                user_id=member.user_id,
+                text=text,
+                keyboard=keyboard,
+            )
+
+        receipts = await ReceiptService.get_receipts(
+            session=session,
+            room_id=room_id,
+        )
+
+        for receipt in receipts:
+
+            if not receipt.photo_path:
+                continue
+
+            try:
+                os.remove(receipt.photo_path)
+
+            except OSError:
+                logger.warning(
+                    "Failed to delete receipt file %s",
+                    receipt.photo_path,
+                    exc_info=True,
+                )
+
+        await RoomService.delete_room(
+            session=session,
+            room_id=room_id,
+        )
 
     @staticmethod
     async def ping(bot, chat_id: int, text: str):

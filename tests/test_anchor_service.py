@@ -354,3 +354,109 @@ async def test_build_settled_screen_has_no_keyboard(session):
 
     assert "погашен" in text.lower()
     assert keyboard is None
+
+
+import os
+
+from services.receipt_service import ReceiptService
+from services.room_service import RoomService
+from repositories.room_repository import RoomRepository
+
+
+async def test_finalize_edits_every_anchor_to_the_settled_screen(session, tmp_path):
+    users, room, _ = await create_users_and_room(session, count=2)
+    bot = FakeBot()
+
+    for index, user in enumerate(users):
+        await AnchorService.create(
+            bot=bot,
+            session=session,
+            room_id=room.id,
+            user_id=user.id,
+            chat_id=100 + index,
+            text="menu",
+        )
+
+    await session.commit()
+
+    await AnchorService.finalize(
+        bot=bot,
+        session=session,
+        room_id=room.id,
+    )
+
+    assert len(bot.edited) == 2
+    for entry in bot.edited:
+        assert "погашен" in entry["text"].lower()
+        assert entry["keyboard"] is None
+
+
+async def test_finalize_deletes_receipt_files_and_room_data(session, tmp_path):
+    users, room, _ = await create_users_and_room(session, count=1)
+    bot = FakeBot()
+
+    await AnchorService.create(
+        bot=bot,
+        session=session,
+        room_id=room.id,
+        user_id=users[0].id,
+        chat_id=100,
+        text="menu",
+    )
+
+    receipt_path = tmp_path / "receipt.jpg"
+    receipt_path.write_bytes(b"fake-image")
+
+    receipt = await ReceiptService.save_receipt(
+        session=session,
+        room_id=room.id,
+        photo_path=str(receipt_path),
+        total=10.0,
+    )
+
+    await session.commit()
+
+    await AnchorService.finalize(
+        bot=bot,
+        session=session,
+        room_id=room.id,
+    )
+    await session.commit()
+
+    assert not receipt_path.exists()
+
+    remaining_room = await RoomRepository.get_by_id(
+        session=session,
+        room_id=room.id,
+    )
+    assert remaining_room is None
+
+
+async def test_finalize_continues_past_a_missing_receipt_file(session, tmp_path):
+    users, room, _ = await create_users_and_room(session, count=1)
+    bot = FakeBot()
+
+    await AnchorService.create(
+        bot=bot,
+        session=session,
+        room_id=room.id,
+        user_id=users[0].id,
+        chat_id=100,
+        text="menu",
+    )
+
+    await ReceiptService.save_receipt(
+        session=session,
+        room_id=room.id,
+        photo_path=str(tmp_path / "does-not-exist.jpg"),
+        total=10.0,
+    )
+
+    await session.commit()
+
+    # Must not raise even though the file is missing.
+    await AnchorService.finalize(
+        bot=bot,
+        session=session,
+        room_id=room.id,
+    )
