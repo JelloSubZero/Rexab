@@ -275,6 +275,13 @@ async def remove_member(
             room_id=room_id,
         )
 
+        if room is None:
+            await callback.answer(
+                "❌ Комната не найдена.",
+                show_alert=True,
+            )
+            return
+
         text, keyboard = build_members_screen(
             room=room,
             members=members,
