@@ -16,7 +16,9 @@ from services.settlement_permission_service import (
 from services.settlement_service import SettlementService
 from services.room_payment_service import RoomPaymentService
 from services.debt_service import DebtService
-from services.anchor_service import AnchorService, build_closed_screen
+from services.anchor_service import AnchorService, build_closed_screen, build_menu_screen
+from services.receipt_service import ReceiptService
+from database.models import RoomStatus
 
 logger = logging.getLogger(__name__)
 
@@ -271,35 +273,49 @@ async def settlement_create(
             settlements=confirmed_settlements,
         )
 
-        async def render_closed_for(member_user_id):
+        room_total = await ReceiptService.get_room_total(
+            session=session,
+            room_id=room_id,
+        )
 
-            pending_for_debtor = (
-                await SettlementService.get_pending_for_debtor(
-                    session=session,
-                    room_id=room_id,
-                    user_id=member_user_id,
+        async def render_room_screen(member_user_id):
+
+            if room.status == RoomStatus.CLOSED.value:
+
+                pending_for_debtor = (
+                    await SettlementService.get_pending_for_debtor(
+                        session=session,
+                        room_id=room_id,
+                        user_id=member_user_id,
+                    )
                 )
-            )
 
-            pending_for_receiver = (
-                await SettlementService.get_pending_for_receiver(
-                    session=session,
-                    room_id=room_id,
-                    user_id=member_user_id,
+                pending_for_receiver = (
+                    await SettlementService.get_pending_for_receiver(
+                        session=session,
+                        room_id=room_id,
+                        user_id=member_user_id,
+                    )
                 )
-            )
 
-            return build_closed_screen(
+                return build_closed_screen(
+                    room=room,
+                    members=members,
+                    transfers=transfers,
+                    user_id=member_user_id,
+                    pending_for_debtor=pending_for_debtor,
+                    pending_for_receiver=pending_for_receiver,
+                )
+
+            return build_menu_screen(
                 room=room,
+                total=room_total,
                 members=members,
-                transfers=transfers,
-                user_id=member_user_id,
-                pending_for_debtor=pending_for_debtor,
-                pending_for_receiver=pending_for_receiver,
+                is_owner=(member_user_id == room.owner_id),
             )
 
         for member_user_id in (from_user_id, to_user_id):
-            text_for_member, keyboard_for_member = await render_closed_for(
+            text_for_member, keyboard_for_member = await render_room_screen(
                 member_user_id
             )
 
@@ -494,35 +510,49 @@ async def settlement_confirm(
             settlements=confirmed_settlements,
         )
 
-        async def render_closed_for(member_user_id):
+        room_total = await ReceiptService.get_room_total(
+            session=session,
+            room_id=room_id,
+        )
 
-            pending_for_debtor = (
-                await SettlementService.get_pending_for_debtor(
-                    session=session,
-                    room_id=room_id,
-                    user_id=member_user_id,
+        async def render_room_screen(member_user_id):
+
+            if room.status == RoomStatus.CLOSED.value:
+
+                pending_for_debtor = (
+                    await SettlementService.get_pending_for_debtor(
+                        session=session,
+                        room_id=room_id,
+                        user_id=member_user_id,
+                    )
                 )
-            )
 
-            pending_for_receiver = (
-                await SettlementService.get_pending_for_receiver(
-                    session=session,
-                    room_id=room_id,
-                    user_id=member_user_id,
+                pending_for_receiver = (
+                    await SettlementService.get_pending_for_receiver(
+                        session=session,
+                        room_id=room_id,
+                        user_id=member_user_id,
+                    )
                 )
-            )
 
-            return build_closed_screen(
+                return build_closed_screen(
+                    room=room,
+                    members=members,
+                    transfers=transfers,
+                    user_id=member_user_id,
+                    pending_for_debtor=pending_for_debtor,
+                    pending_for_receiver=pending_for_receiver,
+                )
+
+            return build_menu_screen(
                 room=room,
+                total=room_total,
                 members=members,
-                transfers=transfers,
-                user_id=member_user_id,
-                pending_for_debtor=pending_for_debtor,
-                pending_for_receiver=pending_for_receiver,
+                is_owner=(member_user_id == room.owner_id),
             )
 
         for member_user_id in (settlement.from_user_id, settlement.to_user_id):
-            text_for_member, keyboard_for_member = await render_closed_for(
+            text_for_member, keyboard_for_member = await render_room_screen(
                 member_user_id
             )
 
@@ -554,16 +584,7 @@ async def settlement_confirm(
         # ПРОВЕРЯЕМ, ПОЛНОСТЬЮ ЛИ ПОГАШЕНА КОМНАТА
         # --------------------------------
 
-        total_debt = sum(
-            float(transfer["amount"])
-            for transfer in transfers
-        )
-
-        fully_settled = await SettlementService.is_room_fully_settled(
-            session=session,
-            room_id=room_id,
-            total_debt=total_debt,
-        )
+        fully_settled = len(transfers) == 0
 
         if fully_settled and room.status == "closed":
             await AnchorService.finalize(
