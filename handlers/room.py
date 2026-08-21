@@ -87,92 +87,6 @@ async def create_room(
         await session.commit()
 
 @router.callback_query(
-    F.data.startswith("room_back:")
-)
-async def room_back(
-    callback: CallbackQuery,
-):
-    room_id = int(
-        callback.data.split(":")[1]
-    )
-
-    async with AsyncSessionLocal() as session:
-
-        current_user = await UserRepository.get_by_telegram_id(
-            session=session,
-            telegram_id=callback.from_user.id,
-        )
-
-        if current_user is None:
-            await callback.answer(
-                "❌ Пользователь не найден.",
-                show_alert=True,
-            )
-            return
-
-        has_access = await RoomAccessService.check_access(
-            session=session,
-            room_id=room_id,
-            user_id=current_user.id,
-        )
-
-        if not has_access:
-            await callback.answer(
-                "❌ Вы больше не участник этой комнаты.",
-                show_alert=True,
-            )
-            return
-
-        room_data = await RoomViewService.build(
-            session=session,
-            room_id=room_id,
-        )
-
-        room = room_data["room"]
-        total = room_data["total"] or 0
-        members = room_data["members"]
-
-        members_text = ""
-
-        for index, member in enumerate(
-            members,
-            start=1,
-        ):
-            name = (
-                member.user.first_name
-                if member.user
-                else "Неизвестный"
-            )
-
-            if member.user_id == room.owner_id:
-                name += " 👑"
-
-            members_text += (
-                f"{index}. {name}\n"
-            )
-
-    text = (
-        f"🏠 <b>{room.name or 'Комната'}</b>\n\n"
-        f"🔑 Код:\n"
-        f"<code>{room.code}</code>\n\n"
-        f"💰 Общая сумма:\n"
-        f"<b>{total:.2f} zł</b>\n\n"
-        f"👥 Участников: {len(members)}\n\n"
-        f"{members_text}"
-    )
-
-    await callback.message.edit_text(
-        text,
-        parse_mode="HTML",
-        reply_markup=room_menu(
-        room.id,
-        is_owner=(room.owner_id == current_user.id),
-    ),
-    )
-
-    await callback.answer()
-
-@router.callback_query(
     F.data.startswith("room_close:")
 )
 async def room_close(
@@ -222,16 +136,23 @@ async def room_close(
             )
             return
 
-    await callback.message.edit_text(
-        "🔒 <b>Закрытие комнаты</b>\n\n"
-        "Вы уверены, что хотите закрыть комнату?\n\n"
-        "После закрытия новые участники "
-        "не смогут присоединиться.",
-        parse_mode="HTML",
-        reply_markup=room_close_confirm_menu(
+        await AnchorService.render(
+            bot=callback.bot,
+            session=session,
             room_id=room_id,
-        ),
-    )
+            user_id=current_user.id,
+            text=(
+                "🔒 <b>Закрытие комнаты</b>\n\n"
+                "Вы уверены, что хотите закрыть комнату?\n\n"
+                "После закрытия новые участники "
+                "не смогут присоединиться."
+            ),
+            keyboard=room_close_confirm_menu(
+                room_id=room_id,
+            ),
+        )
+
+        await session.commit()
 
     await callback.answer()
 
@@ -248,10 +169,6 @@ async def room_close_confirm(
 
     async with AsyncSessionLocal() as session:
 
-        # --------------------------------
-        # ТЕКУЩИЙ ПОЛЬЗОВАТЕЛЬ
-        # --------------------------------
-
         current_user = await UserRepository.get_by_telegram_id(
             session=session,
             telegram_id=callback.from_user.id,
@@ -264,10 +181,6 @@ async def room_close_confirm(
             )
             return
 
-        # --------------------------------
-        # КОМНАТА
-        # --------------------------------
-
         room = await RoomService.get_by_id(
             session=session,
             room_id=room_id,
@@ -279,10 +192,6 @@ async def room_close_confirm(
                 show_alert=True,
             )
             return
-
-        # --------------------------------
-        # ТОЛЬКО ВЛАДЕЛЕЦ
-        # --------------------------------
 
         is_owner = await RoomPermissionService.is_owner(
             session=session,
@@ -297,10 +206,6 @@ async def room_close_confirm(
             )
             return
 
-        # --------------------------------
-        # ПРОВЕРКА СТАТУСА
-        # --------------------------------
-
         if room.status != RoomStatus.ACTIVE.value:
             await callback.answer(
                 "❌ Комната уже закрыта.",
@@ -308,101 +213,69 @@ async def room_close_confirm(
             )
             return
 
-        # --------------------------------
-        # ЗАКРЫВАЕМ
-        # --------------------------------
-
         room.status = RoomStatus.CLOSED.value
 
         await session.commit()
 
-        # --------------------------------
-        # ЧИСТИМ НАКОПИВШИЕСЯ СООБЩЕНИЯ
-        # --------------------------------
+        members = await RoomMemberService.get_members(
+            session=session,
+            room_id=room_id,
+        )
 
-        await RoomMessageService.delete_all(
+        payments = await RoomPaymentService.get_room_payments(
+            session=session,
+            room_id=room_id,
+        )
+
+        confirmed_settlements = (
+            await SettlementService.get_confirmed_for_room(
+                session=session,
+                room_id=room_id,
+            )
+        )
+
+        transfers = DebtService.calculate(
+            members=members,
+            payments=payments,
+            settlements=confirmed_settlements,
+        )
+
+        async def render_closed_for(member_user_id):
+
+            pending_for_debtor = (
+                await SettlementService.get_pending_for_debtor(
+                    session=session,
+                    room_id=room_id,
+                    user_id=member_user_id,
+                )
+            )
+
+            pending_for_receiver = (
+                await SettlementService.get_pending_for_receiver(
+                    session=session,
+                    room_id=room_id,
+                    user_id=member_user_id,
+                )
+            )
+
+            return build_closed_screen(
+                room=room,
+                members=members,
+                transfers=transfers,
+                user_id=member_user_id,
+                pending_for_debtor=pending_for_debtor,
+                pending_for_receiver=pending_for_receiver,
+            )
+
+        await AnchorService.broadcast(
             bot=callback.bot,
             session=session,
             room_id=room_id,
+            render_fn=render_closed_for,
         )
 
         await session.commit()
 
-        # --------------------------------
-        # ЭКРАН ВЛАДЕЛЬЦА
-        # --------------------------------
-
-        owner_view = await RoomViewService.render_closed(
-            session=session,
-            room_id=room_id,
-            user_id=current_user.id,
-        )
-
-        if owner_view is not None:
-
-            await callback.message.edit_text(
-                owner_view["text"],
-                parse_mode="HTML",
-                reply_markup=owner_view["reply_markup"],
-            )
-
-            # Обновляем RoomView владельца
-            # на актуальное сообщение
-            await RoomViewService.save_message(
-                session=session,
-                room_id=room_id,
-                user_id=current_user.id,
-                chat_id=callback.message.chat.id,
-                message_id=callback.message.message_id,
-            )
-
-        # --------------------------------
-        # ОСТАЛЬНЫЕ УЧАСТНИКИ
-        # --------------------------------
-
-        room_views = await RoomViewService.get_views(
-            session=session,
-            room_id=room_id,
-        )
-
-        for room_view in room_views:
-
-            # Владельца уже обновили выше
-            if room_view.user_id == current_user.id:
-                continue
-
-            view = await RoomViewService.render_closed(
-                session=session,
-                room_id=room_id,
-                user_id=room_view.user_id,
-            )
-
-            if view is None:
-                continue
-
-            try:
-
-                await callback.bot.edit_message_text(
-                    chat_id=room_view.chat_id,
-                    message_id=room_view.message_id,
-                    text=view["text"],
-                    parse_mode="HTML",
-                    reply_markup=view["reply_markup"],
-                )
-
-            except TelegramBadRequest:
-                pass
-
-            except Exception:
-                logger.warning(
-                    "Не удалось обновить закрытую комнату "
-                    "для пользователя %s",
-                    room_view.user_id,
-                    exc_info=True,
-                )
-
-            await session.commit()
-            
     await callback.answer(
         "✅ Комната закрыта"
     )

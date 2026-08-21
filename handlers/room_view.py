@@ -4,7 +4,10 @@ from aiogram.types import CallbackQuery
 from database.session import AsyncSessionLocal
 
 from services.room_access_service import RoomAccessService
-from services.room_view_service import RoomViewService
+from services.room_service import RoomService
+from services.receipt_service import ReceiptService
+from services.room_member_service import RoomMemberService
+from services.anchor_service import AnchorService, build_menu_screen
 from repositories.user_repository import UserRepository
 
 
@@ -48,25 +51,35 @@ async def room_view(
             )
             return
 
-        view = await RoomViewService.render(
+        room = await RoomService.get_by_id(
+            session=session,
+            room_id=room_id,
+        )
+
+        total = await ReceiptService.get_room_total(
+            session=session,
+            room_id=room_id,
+        )
+
+        members = await RoomMemberService.get_members(
+            session=session,
+            room_id=room_id,
+        )
+
+        text, keyboard = build_menu_screen(
+            room=room,
+            total=total or 0,
+            members=members,
+            is_owner=(room.owner_id == user.id),
+        )
+
+        await AnchorService.render(
+            bot=callback.bot,
             session=session,
             room_id=room_id,
             user_id=user.id,
-        )
-
-        await callback.message.edit_text(
-            view["text"],
-            parse_mode="HTML",
-            reply_markup=view["reply_markup"],
-        )
-
-        # Обновляем актуальный RoomView
-        await RoomViewService.save_message(
-            session=session,
-            room_id=room_id,
-            user_id=user.id,
-            chat_id=callback.message.chat.id,
-            message_id=callback.message.message_id,
+            text=text,
+            keyboard=keyboard,
         )
 
         await session.commit()
