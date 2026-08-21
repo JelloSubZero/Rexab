@@ -246,6 +246,32 @@ async def test_build_members_list_text_empty(session):
     assert build_members_list_text([], owner_id=1) == "Пока нет участников."
 
 
+async def test_build_members_list_text_handles_member_with_no_user(session):
+    users, room, members = await create_users_and_room(session, count=2)
+
+    # Create a member-like object with user=None to simulate a deleted user
+    class MemberWithoutUser:
+        def __init__(self, user_id):
+            self.user_id = user_id
+            self.user = None
+
+    # Construct a list: first real member, then member with no user, then another real member
+    members_mixed = [
+        members[0],
+        MemberWithoutUser(user_id=999),
+        members[1],
+    ]
+
+    text = build_members_list_text(members_mixed, owner_id=room.owner_id)
+
+    # Check that first member (owner) is marked with crown
+    assert f"1. {users[0].first_name} 👑" in text
+    # Check that second member (no user) shows "Неизвестный"
+    assert "2. Неизвестный\n" in text
+    # Check that third member is displayed normally
+    assert f"3. {users[1].first_name}" in text
+
+
 async def test_build_menu_screen_contains_code_and_total(session):
     users, room, members = await create_users_and_room(session, count=2)
 
