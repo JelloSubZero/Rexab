@@ -1,21 +1,57 @@
 from urllib.parse import quote
 
 from aiogram import Router, F
-from aiogram.types import CallbackQuery, FSInputFile
+from aiogram.types import CallbackQuery
 from aiogram.utils.keyboard import InlineKeyboardBuilder
 
 from config import BOT_USERNAME
 from database.session import AsyncSessionLocal
 
 from services.room_service import RoomService
-from services.qr_service import QRService
 from services.room_access_service import RoomAccessService
-from services.room_message_service import RoomMessageService
+from services.anchor_service import AnchorService
 
 from repositories.user_repository import UserRepository
 
 
 router = Router()
+
+
+def build_invite_screen(room):
+
+    invite_link = f"https://t.me/{BOT_USERNAME}?start={room.code}"
+
+    share_text = (
+        f"Присоединяйся к комнате в Rexab: {invite_link}"
+    )
+
+    share_url = (
+        "https://t.me/share/url?"
+        f"url={quote(invite_link, safe='')}"
+        f"&text={quote(share_text, safe='')}"
+    )
+
+    builder = InlineKeyboardBuilder()
+
+    builder.button(
+        text="📤 Отправить другу",
+        url=share_url,
+    )
+
+    builder.button(
+        text="⬅️ Назад",
+        callback_data=f"room_view:{room.id}",
+    )
+
+    builder.adjust(1)
+
+    text = (
+        "📤 <b>Приглашение в комнату</b>\n\n"
+        f"🔑 Код комнаты:\n<code>{room.code}</code>\n\n"
+        "Отправьте другу ссылку или код."
+    )
+
+    return text, builder.as_markup()
 
 
 @router.callback_query(
@@ -37,12 +73,10 @@ async def room_invite(
         )
 
         if current_user is None:
-
             await callback.answer(
                 "❌ Пользователь не найден.",
                 show_alert=True,
             )
-
             return
 
         has_access = await RoomAccessService.check_access(
@@ -52,12 +86,10 @@ async def room_invite(
         )
 
         if not has_access:
-
             await callback.answer(
                 "❌ Вы больше не участник этой комнаты.",
                 show_alert=True,
             )
-
             return
 
         room = await RoomService.get_by_id(
@@ -66,78 +98,23 @@ async def room_invite(
         )
 
         if room is None:
-
             await callback.answer(
                 "❌ Комната не найдена.",
                 show_alert=True,
             )
-
             return
 
-        room_code = room.code
+        text, keyboard = build_invite_screen(room)
 
-    # --------------------------------
-    # ГЕНЕРИРУЕМ QR
-    # --------------------------------
-
-    qr_path = QRService.generate(
-        room_code,
-    )
-
-    photo = FSInputFile(
-        qr_path,
-    )
-
-    # --------------------------------
-    # ССЫЛКА-ПРИГЛАШЕНИЕ И КНОПКА
-    # ОТПРАВИТЬ ДРУГУ
-    # --------------------------------
-
-    invite_link = f"https://t.me/{BOT_USERNAME}?start={room_code}"
-
-    share_text = f"Присоединяйся к комнате в Rexab: {invite_link}"
-
-    share_url = (
-        "https://t.me/share/url?"
-        f"url={quote(invite_link, safe='')}"
-        f"&text={quote(share_text, safe='')}"
-    )
-
-    builder = InlineKeyboardBuilder()
-
-    builder.button(
-        text="📤 Отправить другу",
-        url=share_url,
-    )
-
-    # --------------------------------
-    # ОТПРАВЛЯЕМ ПРИГЛАШЕНИЕ
-    # --------------------------------
-
-    sent_message = await callback.message.answer_photo(
-        photo=photo,
-        caption=(
-            "📤 <b>Приглашение в комнату</b>\n\n"
-            f"🔑 Код комнаты:\n"
-            f"<code>{room_code}</code>\n\n"
-            "Отправьте друзьям QR-код, поделитесь "
-            "кнопкой ниже или просто сообщите код."
-        ),
-        parse_mode="HTML",
-        reply_markup=builder.as_markup(),
-    )
-
-    # --------------------------------
-    # СОХРАНЯЕМ MESSAGE_ID
-    # --------------------------------
-
-    async with AsyncSessionLocal() as session:
-
-        await RoomMessageService.save(
+        await AnchorService.render(
+            bot=callback.bot,
             session=session,
             room_id=room_id,
-            chat_id=sent_message.chat.id,
-            message_id=sent_message.message_id,
+            user_id=current_user.id,
+            text=text,
+            keyboard=keyboard,
         )
+
+        await session.commit()
 
     await callback.answer()

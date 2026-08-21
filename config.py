@@ -22,12 +22,10 @@ DATABASE_URL = os.getenv(
 )
 
 STATIC_DIR = BASE_DIR / "static"
-QR_DIR = STATIC_DIR / "qr"
 RECEIPTS_DIR = STATIC_DIR / "receipts"
 LOGS_DIR = BASE_DIR / "logs"
 
 # Автоматическое создание папок
-QR_DIR.mkdir(parents=True, exist_ok=True)
 RECEIPTS_DIR.mkdir(parents=True, exist_ok=True)
 LOGS_DIR.mkdir(parents=True, exist_ok=True)
 

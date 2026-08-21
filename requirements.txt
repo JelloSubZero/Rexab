@@ -4,7 +4,6 @@ aiosqlite==0.22.1
 asyncpg==0.30.0
 alembic==1.19.0
 python-dotenv==1.2.2
-qrcode==8.2
 pytesseract==0.3.13
 opencv-python==5.0.0.93
 pillow==12.3.0
