@@ -5,6 +5,7 @@ from aiogram.exceptions import TelegramBadRequest
 from repositories.room_view_repository import RoomViewRepository
 from keyboards.room_menu import room_menu
 from keyboards.room_members_menu import room_members_menu
+from keyboards.closed_room_menu import closed_room_menu
 
 logger = logging.getLogger(__name__)
 
@@ -64,6 +65,93 @@ def build_members_screen(room, members):
         members=members,
         owner_id=room.owner_id,
     )
+
+
+def build_closed_screen(
+    room,
+    members,
+    transfers,
+    user_id,
+    pending_for_debtor,
+    pending_for_receiver,
+):
+
+    user_transfers = [
+        transfer
+        for transfer in transfers
+        if (
+            transfer["from_user_id"] == user_id
+            or transfer["to_user_id"] == user_id
+        )
+    ]
+
+    total_debt = sum(
+        float(transfer["amount"])
+        for transfer in transfers
+    )
+
+    debts_text = ""
+
+    for transfer in user_transfers:
+
+        from_member = next(
+            (m for m in members if m.user_id == transfer["from_user_id"]),
+            None,
+        )
+
+        to_member = next(
+            (m for m in members if m.user_id == transfer["to_user_id"]),
+            None,
+        )
+
+        from_name = (
+            from_member.user.first_name
+            if from_member and from_member.user
+            else "Неизвестный"
+        )
+
+        to_name = (
+            to_member.user.first_name
+            if to_member and to_member.user
+            else "Неизвестный"
+        )
+
+        debts_text += (
+            f"• <b>{from_name}</b> → <b>{to_name}</b>: "
+            f"<b>{float(transfer['amount']):.2f} zł</b>\n"
+        )
+
+    if not debts_text:
+        debts_text = "🎉 У вас нет непогашенных долгов."
+
+    text = (
+        "🔒 <b>Комната закрыта</b>\n\n"
+        f"💰 Непогашено: <b>{total_debt:.2f} zł</b>\n"
+        f"👥 Участников: <b>{len(members)}</b>\n\n"
+        "👤 <b>Ваши долги</b>\n\n"
+        f"{debts_text}"
+    )
+
+    keyboard = closed_room_menu(
+        room_id=room.id,
+        transfers=user_transfers,
+        current_user_id=user_id,
+        pending_for_debtor=pending_for_debtor,
+        pending_for_receiver=pending_for_receiver,
+    )
+
+    return text, keyboard
+
+
+def build_settled_screen():
+
+    text = (
+        "🎉 <b>Все долги погашены!</b>\n\n"
+        "Комната закрыта и удалена. "
+        "Спасибо, что пользовались Rexab!"
+    )
+
+    return text, None
 
 
 class AnchorService:

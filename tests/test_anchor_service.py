@@ -310,3 +310,47 @@ async def test_build_members_screen(session):
     assert "Участники комнаты" in text
     assert "Всего: <b>2</b>" in text
     assert keyboard is not None
+
+
+from services.anchor_service import build_closed_screen, build_settled_screen
+
+
+async def test_build_closed_screen_shows_only_the_users_debts(session):
+    users, room, members = await create_users_and_room(session, count=3)
+    payer, debtor, bystander = users
+
+    transfers = [
+        {"from_user_id": debtor.id, "to_user_id": payer.id, "amount": 50.0},
+    ]
+
+    text, keyboard = build_closed_screen(
+        room=room,
+        members=members,
+        transfers=transfers,
+        user_id=debtor.id,
+        pending_for_debtor=[],
+        pending_for_receiver=[],
+    )
+
+    assert "Комната закрыта" in text
+    assert "50.00 zł" in text
+    assert payer.first_name in text
+    assert keyboard is not None
+
+    text_bystander, _ = build_closed_screen(
+        room=room,
+        members=members,
+        transfers=transfers,
+        user_id=bystander.id,
+        pending_for_debtor=[],
+        pending_for_receiver=[],
+    )
+
+    assert "нет непогашенных долгов" in text_bystander
+
+
+async def test_build_settled_screen_has_no_keyboard(session):
+    text, keyboard = build_settled_screen()
+
+    assert "погашен" in text.lower()
+    assert keyboard is None
