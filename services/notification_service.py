@@ -3,8 +3,6 @@ import logging
 from aiogram import Bot
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from services.room_message_service import RoomMessageService
-
 logger = logging.getLogger(__name__)
 
 
@@ -40,17 +38,10 @@ class NotificationService:
 
             try:
 
-                sent_message = await bot.send_message(
+                await bot.send_message(
                     chat_id=telegram_id,
                     text=text,
                     parse_mode="HTML",
-                )
-
-                await RoomMessageService.save(
-                    session=session,
-                    room_id=room_id,
-                    chat_id=telegram_id,
-                    message_id=sent_message.message_id,
                 )
 
             except Exception:
@@ -91,17 +82,10 @@ class NotificationService:
 
             try:
 
-                sent_message = await bot.send_message(
+                await bot.send_message(
                     chat_id=telegram_id,
                     text=text,
                     parse_mode="HTML",
-                )
-
-                await RoomMessageService.save(
-                    session=session,
-                    room_id=room_id,
-                    chat_id=telegram_id,
-                    message_id=sent_message.message_id,
                 )
 
             except Exception:
@@ -139,17 +123,10 @@ class NotificationService:
 
             try:
 
-                sent_message = await bot.send_message(
+                await bot.send_message(
                     chat_id=telegram_id,
                     text=text,
                     parse_mode="HTML",
-                )
-
-                await RoomMessageService.save(
-                    session=session,
-                    room_id=room_id,
-                    chat_id=telegram_id,
-                    message_id=sent_message.message_id,
                 )
 
             except Exception:
@@ -187,17 +164,10 @@ class NotificationService:
 
             try:
 
-                sent_message = await bot.send_message(
+                await bot.send_message(
                     chat_id=telegram_id,
                     text=text,
                     parse_mode="HTML",
-                )
-
-                await RoomMessageService.save(
-                    session=session,
-                    room_id=room_id,
-                    chat_id=telegram_id,
-                    message_id=sent_message.message_id,
                 )
 
             except Exception:
@@ -274,17 +244,10 @@ class NotificationService:
 
         try:
 
-            sent_message = await bot.send_message(
+            await bot.send_message(
                 chat_id=telegram_id,
                 text=text,
                 parse_mode="HTML",
-            )
-
-            await RoomMessageService.save(
-                session=session,
-                room_id=room_id,
-                chat_id=telegram_id,
-                message_id=sent_message.message_id,
             )
 
         except Exception:
@@ -347,17 +310,10 @@ class NotificationService:
 
         try:
 
-            sent_message = await bot.send_message(
+            await bot.send_message(
                 chat_id=telegram_id,
                 text=text,
                 parse_mode="HTML",
-            )
-
-            await RoomMessageService.save(
-                session=session,
-                room_id=room_id,
-                chat_id=telegram_id,
-                message_id=sent_message.message_id,
             )
 
         except Exception:

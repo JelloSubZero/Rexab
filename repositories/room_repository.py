@@ -4,7 +4,6 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from database.models import (
     Room,
     RoomView,
-    RoomMessage,
     RoomSettlement,
     RoomPayment,
     RoomHistory,
@@ -77,12 +76,6 @@ class RoomRepository:
         await session.execute(
             delete(RoomView).where(
                 RoomView.room_id == room_id
-            )
-        )
-
-        await session.execute(
-            delete(RoomMessage).where(
-                RoomMessage.room_id == room_id
             )
         )
 
