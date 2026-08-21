@@ -122,6 +122,14 @@ async def finish_receipts(
             room_id=room_id,
         )
 
+        if room is None:
+            await callback.answer(
+                "❌ Комната не найдена.",
+                show_alert=True,
+            )
+            await state.clear()
+            return
+
         total = await ReceiptService.get_room_total(
             session=session,
             room_id=room_id,

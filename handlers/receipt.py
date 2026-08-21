@@ -182,6 +182,13 @@ async def receipt_handler(
                 room_id=room_id,
             )
 
+            if room is None:
+                await message.answer(
+                    "❌ Комната не найдена."
+                )
+                await state.clear()
+                return
+
             room_total = await ReceiptService.get_room_total(
                 session=session,
                 room_id=room_id,
@@ -321,6 +328,13 @@ async def manual_total(
             session=session,
             room_id=room_id,
         )
+
+        if room is None:
+            await message.answer(
+                "❌ Комната не найдена."
+            )
+            await state.clear()
+            return
 
         room_total = await ReceiptService.get_room_total(
             session=session,
