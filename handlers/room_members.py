@@ -3,12 +3,11 @@ from aiogram.types import CallbackQuery
 
 from database.session import AsyncSessionLocal
 
-from keyboards.room_members_menu import room_members_menu
-
 from services.room_service import RoomService
 from services.room_member_service import RoomMemberService
 from services.room_access_service import RoomAccessService
 from services.notification_service import NotificationService
+from services.anchor_service import AnchorService, build_members_screen
 from services.room_permission_service import (
     RemoveMemberPermission,
     RoomPermissionService,
@@ -90,49 +89,21 @@ async def room_members(
             room_id=room_id,
         )
 
-    # --------------------------------
-    # ФОРМИРУЕМ СПИСОК
-    # --------------------------------
-
-    members_text = ""
-
-    for index, member in enumerate(
-        members,
-        start=1,
-    ):
-
-        name = (
-            member.user.first_name
-            if member.user
-            else "Неизвестный"
-        )
-
-        if member.user_id == room.owner_id:
-            name += " 👑"
-
-        members_text += (
-            f"{index}. {name}\n"
-        )
-
-    if not members_text:
-        members_text = "Пока нет участников."
-
-    text = (
-        "👥 <b>Участники комнаты</b>\n\n"
-        f"{members_text}\n"
-        "───────────────\n"
-        f"👥 Всего: <b>{len(members)}</b>"
-    )
-
-    await callback.message.edit_text(
-        text,
-        parse_mode="HTML",
-        reply_markup=room_members_menu(
-            room_id=room_id,
+        text, keyboard = build_members_screen(
+            room=room,
             members=members,
-            owner_id=room.owner_id,
-        ),
-    )
+        )
+
+        await AnchorService.render(
+            bot=callback.bot,
+            session=session,
+            room_id=room_id,
+            user_id=current_user.id,
+            text=text,
+            keyboard=keyboard,
+        )
+
+        await session.commit()
 
     await callback.answer()
 
@@ -304,49 +275,21 @@ async def remove_member(
             room_id=room_id,
         )
 
-    # --------------------------------
-    # ФОРМИРУЕМ СПИСОК
-    # --------------------------------
-
-    members_text = ""
-
-    for index, member in enumerate(
-        members,
-        start=1,
-    ):
-
-        name = (
-            member.user.first_name
-            if member.user
-            else "Неизвестный"
-        )
-
-        if room and member.user_id == room.owner_id:
-            name += " 👑"
-
-        members_text += (
-            f"{index}. {name}\n"
-        )
-
-    if not members_text:
-        members_text = "Пока нет участников."
-
-    text = (
-        "👥 <b>Участники комнаты</b>\n\n"
-        f"{members_text}\n"
-        "───────────────\n"
-        f"👥 Всего: <b>{len(members)}</b>"
-    )
-
-    await callback.message.edit_text(
-        text,
-        parse_mode="HTML",
-        reply_markup=room_members_menu(
-            room_id=room_id,
+        text, keyboard = build_members_screen(
+            room=room,
             members=members,
-            owner_id=room.owner_id if room else None,
-        ),
-    )
+        )
+
+        await AnchorService.render(
+            bot=callback.bot,
+            session=session,
+            room_id=room_id,
+            user_id=current_user.id,
+            text=text,
+            keyboard=keyboard,
+        )
+
+        await session.commit()
 
     await callback.answer(
         "✅ Участник удален."
