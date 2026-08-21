@@ -5,7 +5,6 @@ from aiogram.utils.keyboard import InlineKeyboardBuilder
 from keyboards.payment_delete_menu import payment_delete_menu
 from services.room_member_service import RoomMemberService
 from services.room_history_service import RoomHistoryService
-from services.notification_service import NotificationService
 from services.room_service import RoomService
 from services.receipt_service import ReceiptService
 from services.anchor_service import AnchorService, build_menu_screen
@@ -22,7 +21,6 @@ from services.room_payment_service import RoomPaymentService
 from repositories.user_repository import UserRepository
 
 from states.payment_state import PaymentState
-from services.debt_service import DebtService
 
 from keyboards.payment_manage_menu import payment_manage_menu
 
@@ -291,59 +289,6 @@ async def payment_delete_confirm(
             session=session,
             room_id=room_id,
         )
-
-        # --------------------------------
-        # ПЕРЕСЧИТЫВАЕМ ДОЛГИ
-        # --------------------------------
-
-        details = DebtService.calculate_details(
-            members=members,
-            payments=payments,
-        )
-
-        balances = details["balances"]
-        share = details["share"]
-
-        # --------------------------------
-        # КТО УДАЛИЛ ПЛАТЁЖ
-        # --------------------------------
-
-        deleted_by_name = (
-            current_user.first_name
-            or current_user.username
-            or "Пользователь"
-        )
-
-        # --------------------------------
-        # ПЕРСОНАЛЬНЫЕ УВЕДОМЛЕНИЯ
-        # --------------------------------
-
-        for member in members:
-
-            user = await UserRepository.get_by_id(
-                session=session,
-                user_id=member.user_id,
-            )
-
-            if user is None:
-                continue
-
-            balance = balances.get(
-                user.id,
-                0,
-            )
-
-            await NotificationService.notify_debt_changed_after_delete(
-                bot=bot,
-                session=session,
-                room_id=room_id,
-                telegram_id=user.telegram_id,
-                user_name=deleted_by_name,
-                description=payment_description,
-                amount=float(payment_amount),
-                share=float(share),
-                balance=float(balance),
-            )
 
         await session.commit()
 
@@ -816,21 +761,6 @@ async def payment_description(
         )
 
         # --------------------------------
-        # ПОЛУЧАЕМ ПЛАТЕЛЬЩИКА
-        # --------------------------------
-
-        payer = await UserRepository.get_by_id(
-            session=session,
-            user_id=payer_id,
-        )
-
-        payer_name = (
-            payer.first_name
-            if payer
-            else "Пользователь"
-        )
-
-        # --------------------------------
         # ЗАПИСЫВАЕМ В ИСТОРИЮ
         # --------------------------------
 
@@ -851,49 +781,6 @@ async def payment_description(
             session=session,
             room_id=room_id,
         )
-
-        # --------------------------------
-        # РАССЧИТЫВАЕМ ДОЛГИ
-        # --------------------------------
-
-        details = DebtService.calculate_details(
-            members=members,
-            payments=payments,
-        )
-
-        balances = details["balances"]
-        share = details["share"]
-
-        # --------------------------------
-        # ПЕРСОНАЛЬНЫЕ УВЕДОМЛЕНИЯ
-        # --------------------------------
-
-        for member in members:
-
-            user = await UserRepository.get_by_id(
-                session=session,
-                user_id=member.user_id,
-            )
-
-            if user is None:
-                continue
-
-            balance = balances.get(
-                user.id,
-                0,
-            )
-
-            await NotificationService.notify_debt_changed(
-                bot=bot,
-                session=session,
-                room_id=room_id,
-                telegram_id=user.telegram_id,
-                payer_name=payer_name,
-                description=description,
-                amount=amount,
-                share=float(share),
-                balance=float(balance),
-            )
 
         # --------------------------------
         # ФОРМИРУЕМ ФИНАЛЬНОЕ СООБЩЕНИЕ

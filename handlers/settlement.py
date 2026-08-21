@@ -342,6 +342,7 @@ async def settlement_create(
                     f"оплатил(а) вам <b>{actual_amount:.2f} zł</b>.\n\n"
                     "Откройте комнату, чтобы подтвердить получение."
                 ),
+                delete_after=60,
             )
 
         # --------------------------------
@@ -578,6 +579,7 @@ async def settlement_confirm(
                     f"Получатель подтвердил получение "
                     f"<b>{float(settlement.amount):.2f} zł</b>."
                 ),
+                delete_after=60,
             )
 
         # --------------------------------

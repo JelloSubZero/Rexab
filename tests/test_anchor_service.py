@@ -1,3 +1,5 @@
+import asyncio
+
 import pytest
 
 pytest.importorskip("aiosqlite")
@@ -223,6 +225,40 @@ async def test_ping_swallows_send_failures(session):
         chat_id=42,
         text="🔔 hi",
     )
+
+
+async def test_ping_with_delete_after_schedules_deletion(session):
+    bot = FakeBot()
+
+    await AnchorService.ping(
+        bot=bot,
+        chat_id=42,
+        text="🔔 hi",
+        delete_after=0,
+    )
+
+    assert len(bot.sent) == 1
+    message_id = bot.sent[0]["message_id"]
+    assert bot.deleted == []
+
+    # Let the scheduled background deletion task run.
+    await asyncio.sleep(0.05)
+
+    assert bot.deleted == [(42, message_id)]
+
+
+async def test_ping_without_delete_after_does_not_schedule_deletion(session):
+    bot = FakeBot()
+
+    await AnchorService.ping(
+        bot=bot,
+        chat_id=42,
+        text="🔔 hi",
+    )
+
+    await asyncio.sleep(0.05)
+
+    assert bot.deleted == []
 
 
 from services.anchor_service import (

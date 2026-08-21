@@ -1,3 +1,4 @@
+import asyncio
 import logging
 import os
 
@@ -323,9 +324,9 @@ class AnchorService:
         )
 
     @staticmethod
-    async def ping(bot, chat_id: int, text: str):
+    async def ping(bot, chat_id: int, text: str, delete_after: int | None = None):
         try:
-            await bot.send_message(
+            message = await bot.send_message(
                 chat_id=chat_id,
                 text=text,
                 parse_mode="HTML",
@@ -334,6 +335,35 @@ class AnchorService:
         except Exception:
             logger.warning(
                 "Failed to send ping to chat %s",
+                chat_id,
+                exc_info=True,
+            )
+            return
+
+        if delete_after is not None:
+            asyncio.create_task(
+                AnchorService._delete_ping_after(
+                    bot=bot,
+                    chat_id=chat_id,
+                    message_id=message.message_id,
+                    delay=delete_after,
+                )
+            )
+
+    @staticmethod
+    async def _delete_ping_after(bot, chat_id: int, message_id: int, delay: int):
+        await asyncio.sleep(delay)
+
+        try:
+            await bot.delete_message(
+                chat_id=chat_id,
+                message_id=message_id,
+            )
+
+        except Exception:
+            logger.warning(
+                "Failed to delete ping message %s in chat %s",
+                message_id,
                 chat_id,
                 exc_info=True,
             )
