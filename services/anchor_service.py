@@ -87,3 +87,46 @@ class AnchorService:
                 text=text,
                 keyboard=keyboard,
             )
+
+    @staticmethod
+    async def broadcast(
+        bot,
+        session,
+        room_id: int,
+        render_fn,
+    ):
+        """render_fn: async (user_id: int) -> (text: str, keyboard)"""
+
+        views = await RoomViewRepository.get_all(
+            session=session,
+            room_id=room_id,
+        )
+
+        for view in views:
+
+            text, keyboard = await render_fn(view.user_id)
+
+            await AnchorService.render(
+                bot=bot,
+                session=session,
+                room_id=room_id,
+                user_id=view.user_id,
+                text=text,
+                keyboard=keyboard,
+            )
+
+    @staticmethod
+    async def ping(bot, chat_id: int, text: str):
+        try:
+            await bot.send_message(
+                chat_id=chat_id,
+                text=text,
+                parse_mode="HTML",
+            )
+
+        except Exception:
+            logger.warning(
+                "Failed to send ping to chat %s",
+                chat_id,
+                exc_info=True,
+            )

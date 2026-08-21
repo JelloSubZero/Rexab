@@ -155,3 +155,71 @@ async def test_render_is_noop_without_a_stored_anchor(session):
 
     assert bot.sent == []
     assert bot.edited == []
+
+
+async def test_broadcast_renders_every_room_view(session):
+    users, room, _ = await create_users_and_room(session, count=2)
+    bot = FakeBot()
+
+    for index, user in enumerate(users):
+        await AnchorService.create(
+            bot=bot,
+            session=session,
+            room_id=room.id,
+            user_id=user.id,
+            chat_id=100 + index,
+            text="initial",
+        )
+
+    await session.commit()
+
+    seen_user_ids = []
+
+    async def render_fn(user_id):
+        seen_user_ids.append(user_id)
+        return f"screen for {user_id}", None
+
+    await AnchorService.broadcast(
+        bot=bot,
+        session=session,
+        room_id=room.id,
+        render_fn=render_fn,
+    )
+
+    assert sorted(seen_user_ids) == sorted(u.id for u in users)
+    assert len(bot.edited) == 2
+    edited_texts = {entry["text"] for entry in bot.edited}
+    assert edited_texts == {
+        f"screen for {users[0].id}",
+        f"screen for {users[1].id}",
+    }
+
+
+async def test_ping_sends_a_plain_message(session):
+    bot = FakeBot()
+
+    await AnchorService.ping(
+        bot=bot,
+        chat_id=42,
+        text="🔔 hi",
+    )
+
+    assert len(bot.sent) == 1
+    assert bot.sent[0]["chat_id"] == 42
+    assert bot.sent[0]["text"] == "🔔 hi"
+    assert bot.sent[0]["keyboard"] is None
+
+
+async def test_ping_swallows_send_failures(session):
+    class ExplodingBot(FakeBot):
+        async def send_message(self, *args, **kwargs):
+            raise RuntimeError("network down")
+
+    bot = ExplodingBot()
+
+    # Must not raise.
+    await AnchorService.ping(
+        bot=bot,
+        chat_id=42,
+        text="🔔 hi",
+    )
