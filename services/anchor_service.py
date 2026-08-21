@@ -1,14 +1,13 @@
 import logging
 import os
 
-from aiogram.exceptions import TelegramBadRequest
+from aiogram.exceptions import TelegramAPIError, TelegramBadRequest
 
 from repositories.room_view_repository import RoomViewRepository
 from keyboards.room_menu import room_menu
 from keyboards.room_members_menu import room_members_menu
 from keyboards.closed_room_menu import closed_room_menu
 from services.receipt_service import ReceiptService
-from services.room_member_service import RoomMemberService
 from services.room_service import RoomService
 
 logger = logging.getLogger(__name__)
@@ -213,20 +212,25 @@ class AnchorService:
                 parse_mode="HTML",
                 reply_markup=keyboard,
             )
+            return
 
         except TelegramBadRequest as error:
 
             if _NOT_MODIFIED in error.message:
                 return
 
-            logger.warning(
-                "Anchor message unreachable for room %s user %s, "
-                "recreating",
-                room_id,
-                user_id,
-                exc_info=True,
-            )
+        except TelegramAPIError:
+            pass
 
+        logger.warning(
+            "Anchor message unreachable for room %s user %s, "
+            "recreating",
+            room_id,
+            user_id,
+            exc_info=True,
+        )
+
+        try:
             await AnchorService.create(
                 bot=bot,
                 session=session,
@@ -235,6 +239,15 @@ class AnchorService:
                 chat_id=view.chat_id,
                 text=text,
                 keyboard=keyboard,
+            )
+
+        except TelegramAPIError:
+            logger.warning(
+                "Failed to recreate anchor for room %s user %s "
+                "(recipient likely unreachable)",
+                room_id,
+                user_id,
+                exc_info=True,
             )
 
     @staticmethod
@@ -267,19 +280,19 @@ class AnchorService:
     @staticmethod
     async def finalize(bot, session, room_id: int):
 
-        members = await RoomMemberService.get_members(
+        views = await RoomViewRepository.get_all(
             session=session,
             room_id=room_id,
         )
 
         text, keyboard = build_settled_screen()
 
-        for member in members:
+        for view in views:
             await AnchorService.render(
                 bot=bot,
                 session=session,
                 room_id=room_id,
-                user_id=member.user_id,
+                user_id=view.user_id,
                 text=text,
                 keyboard=keyboard,
             )

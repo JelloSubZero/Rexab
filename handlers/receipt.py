@@ -222,14 +222,6 @@ async def receipt_handler(
 
             await session.commit()
 
-        try:
-            await message.delete()
-        except Exception:
-            logger.warning(
-                "Не удалось удалить сообщение с чеком",
-                exc_info=True,
-            )
-
         # --------------------------------
         # СЛЕДУЮЩИЙ ЧЕК
         # --------------------------------

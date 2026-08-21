@@ -40,7 +40,7 @@ Rexab/
 │   ├── *_permission_service.py     # разрешено ли действие конкретному пользователю
 │   ├── auth_service.py, telegram_auth_service.py   # bcrypt-хэши, JWT, проверка Telegram Login Widget
 │   ├── room_service.py, room_member_service.py, room_access_service.py
-│   ├── room_view_service.py, room_message_service.py
+│   ├── anchor_service.py            # единое «якорное» сообщение комнаты
 │   ├── receipt_service.py, room_payment_service.py, settlement_service.py
 │   ├── debt_service.py, split_bill_service.py
 │   ├── notification_service.py, qr_service.py, user_service.py

@@ -345,6 +345,8 @@ async def payment_delete_confirm(
                 balance=float(balance),
             )
 
+        await session.commit()
+
     # --------------------------------
     # ФОРМИРУЕМ ОБНОВЛЁННЫЙ СПИСОК
     # --------------------------------

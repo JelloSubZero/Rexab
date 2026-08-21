@@ -6,10 +6,12 @@ from database.session import AsyncSessionLocal
 from repositories.user_repository import UserRepository
 
 from services.room_access_service import RoomAccessService
-from services.room_view_service import RoomViewService
+from services.room_service import RoomService
+from services.receipt_service import ReceiptService
+from services.room_member_service import RoomMemberService
 from services.settlement_service import SettlementService
+from services.anchor_service import AnchorService, build_menu_screen
 
-from keyboards.room_menu import room_menu
 from keyboards.settlement_history_menu import (
     settlement_history_menu,
 )
@@ -93,14 +95,18 @@ async def settlement_history(
                 "Пока погашений нет."
             )
 
-            await callback.message.edit_text(
-                text,
-                parse_mode="HTML",
-                reply_markup=settlement_history_menu(
+            await AnchorService.render(
+                bot=callback.bot,
+                session=session,
+                room_id=room_id,
+                user_id=current_user.id,
+                text=text,
+                keyboard=settlement_history_menu(
                     room_id=room_id,
                 ),
             )
 
+            await session.commit()
             await callback.answer()
             return
 
@@ -217,20 +223,20 @@ async def settlement_history(
             f"{history_text}"
         )
 
-        # --------------------------------
-        # ВАЖНО:
-        # РЕДАКТИРУЕМ СТАРОЕ СООБЩЕНИЕ
-        # --------------------------------
-
-        await callback.message.edit_text(
-            text,
-            parse_mode="HTML",
-            reply_markup=settlement_history_menu(
+        await AnchorService.render(
+            bot=callback.bot,
+            session=session,
+            room_id=room_id,
+            user_id=current_user.id,
+            text=text,
+            keyboard=settlement_history_menu(
                 room_id=room_id,
             ),
         )
 
-        await callback.answer()
+        await session.commit()
+
+    await callback.answer()
 
 
 # ========================================
@@ -292,76 +298,44 @@ async def settlement_history_back(
         # ПОЛУЧАЕМ ДАННЫЕ КОМНАТЫ
         # --------------------------------
 
-        room_data = await RoomViewService.build(
+        room = await RoomService.get_by_id(
             session=session,
             room_id=room_id,
         )
 
-        if not room_data:
-
+        if room is None:
             await callback.answer(
                 "❌ Комната не найдена.",
                 show_alert=True,
             )
             return
 
-        room = room_data["room"]
-        total = room_data["total"] or 0
-        members = room_data["members"]
-
-        # --------------------------------
-        # СПИСОК УЧАСТНИКОВ
-        # --------------------------------
-
-        members_text = ""
-
-        for index, member in enumerate(
-            members,
-            start=1,
-        ):
-
-            name = (
-                member.user.first_name
-                if member.user
-                else "Неизвестный"
-            )
-
-            if member.user_id == room.owner_id:
-                name += " 👑"
-
-            members_text += (
-                f"{index}. {name}\n"
-            )
-
-        # --------------------------------
-        # МЕНЮ КОМНАТЫ
-        # --------------------------------
-
-        text = (
-            f"🏠 <b>{room.name or 'Комната'}</b>\n\n"
-
-            "🔑 Код:\n"
-            f"<code>{room.code}</code>\n\n"
-
-            "💰 Общая сумма:\n"
-            f"<b>{total:.2f} zł</b>\n\n"
-
-            "👥 Участников: "
-            f"<b>{len(members)}</b>\n\n"
-
-            f"{members_text}"
+        total = await ReceiptService.get_room_total(
+            session=session,
+            room_id=room_id,
         )
 
-        # --------------------------------
-        # РЕДАКТИРУЕМ ТО ЖЕ СООБЩЕНИЕ
-        # --------------------------------
-
-        await callback.message.edit_text(
-            text,
-            parse_mode="HTML",
-            reply_markup=room_menu(
-                room_id=room.id,
-            ),
+        members = await RoomMemberService.get_members(
+            session=session,
+            room_id=room_id,
         )
 
-        await callback.answer()
+        text, keyboard = build_menu_screen(
+            room=room,
+            total=total or 0,
+            members=members,
+            is_owner=(room.owner_id == current_user.id),
+        )
+
+        await AnchorService.render(
+            bot=callback.bot,
+            session=session,
+            room_id=room_id,
+            user_id=current_user.id,
+            text=text,
+            keyboard=keyboard,
+        )
+
+        await session.commit()
+
+    await callback.answer()

@@ -1,12 +1,9 @@
-import logging
-
 from aiogram import Router, F
 from aiogram.types import Message, CallbackQuery
 from aiogram.fsm.context import FSMContext
 from services.room_member_service import RoomMemberService
 from database.models import RoomStatus
 from keyboards.room_close_confirm_menu import room_close_confirm_menu
-from aiogram.exceptions import TelegramBadRequest
 
 from database.session import AsyncSessionLocal
 from repositories.user_repository import UserRepository
@@ -14,20 +11,14 @@ from services.room_service import RoomService
 from services.anchor_service import (
     AnchorService,
     build_closed_screen,
-    build_members_list_text,
-    build_menu_screen,
 )
 
-from keyboards.room_menu import room_menu
-from services.room_access_service import RoomAccessService
 from services.room_permission_service import RoomPermissionService
 from services.settlement_service import SettlementService
 from services.room_payment_service import RoomPaymentService
 from services.debt_service import DebtService
 
 from states.receipt_state import ReceiptState
-
-logger = logging.getLogger(__name__)
 
 router = Router()
 
@@ -240,39 +231,49 @@ async def room_close_confirm(
             settlements=confirmed_settlements,
         )
 
-        async def render_closed_for(member_user_id):
+        if not transfers:
 
-            pending_for_debtor = (
-                await SettlementService.get_pending_for_debtor(
-                    session=session,
-                    room_id=room_id,
-                    user_id=member_user_id,
+            await AnchorService.finalize(
+                bot=callback.bot,
+                session=session,
+                room_id=room_id,
+            )
+
+        else:
+
+            async def render_closed_for(member_user_id):
+
+                pending_for_debtor = (
+                    await SettlementService.get_pending_for_debtor(
+                        session=session,
+                        room_id=room_id,
+                        user_id=member_user_id,
+                    )
                 )
-            )
 
-            pending_for_receiver = (
-                await SettlementService.get_pending_for_receiver(
-                    session=session,
-                    room_id=room_id,
-                    user_id=member_user_id,
+                pending_for_receiver = (
+                    await SettlementService.get_pending_for_receiver(
+                        session=session,
+                        room_id=room_id,
+                        user_id=member_user_id,
+                    )
                 )
-            )
 
-            return build_closed_screen(
-                room=room,
-                members=members,
-                transfers=transfers,
-                user_id=member_user_id,
-                pending_for_debtor=pending_for_debtor,
-                pending_for_receiver=pending_for_receiver,
-            )
+                return build_closed_screen(
+                    room=room,
+                    members=members,
+                    transfers=transfers,
+                    user_id=member_user_id,
+                    pending_for_debtor=pending_for_debtor,
+                    pending_for_receiver=pending_for_receiver,
+                )
 
-        await AnchorService.broadcast(
-            bot=callback.bot,
-            session=session,
-            room_id=room_id,
-            render_fn=render_closed_for,
-        )
+            await AnchorService.broadcast(
+                bot=callback.bot,
+                session=session,
+                room_id=room_id,
+                render_fn=render_closed_for,
+            )
 
         await session.commit()
 
