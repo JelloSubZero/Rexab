@@ -6,8 +6,9 @@ from keyboards.payment_delete_menu import payment_delete_menu
 from services.room_member_service import RoomMemberService
 from services.room_history_service import RoomHistoryService
 from services.notification_service import NotificationService
-from services.room_message_service import RoomMessageService
-from services.room_view_service import RoomViewService
+from services.room_service import RoomService
+from services.receipt_service import ReceiptService
+from services.anchor_service import AnchorService, build_menu_screen
 from services.payment_permission_service import (
     PaymentPermission,
     PaymentPermissionService,
@@ -132,20 +133,27 @@ async def payment_delete(
 
         amount = payment.amount
 
-    await callback.message.edit_text(
-        (
-            "🗑 <b>Удалить платёж?</b>\n\n"
-            f"💳 Плательщик: <b>{payer_name}</b>\n"
-            f"💰 Сумма: <b>{amount:.2f} zł</b>\n"
-            f"📝 Расход: <b>{description}</b>\n\n"
-            "Вы уверены?"
-        ),
-        parse_mode="HTML",
-        reply_markup=payment_delete_menu(
-            payment_id=payment_id,
+    async with AsyncSessionLocal() as session:
+
+        await AnchorService.render(
+            bot=callback.bot,
+            session=session,
             room_id=room_id,
-        ),
-    )
+            user_id=current_user.id,
+            text=(
+                "🗑 <b>Удалить платёж?</b>\n\n"
+                f"💳 Плательщик: <b>{payer_name}</b>\n"
+                f"💰 Сумма: <b>{amount:.2f} zł</b>\n"
+                f"📝 Расход: <b>{description}</b>\n\n"
+                "Вы уверены?"
+            ),
+            keyboard=payment_delete_menu(
+                payment_id=payment_id,
+                room_id=room_id,
+            ),
+        )
+
+        await session.commit()
 
     await callback.answer()
 
@@ -340,23 +348,72 @@ async def payment_delete_confirm(
     # --------------------------------
     # ФОРМИРУЕМ ОБНОВЛЁННЫЙ СПИСОК
     # --------------------------------
+
+    async with AsyncSessionLocal() as session:
+
         split = await SplitBillService.calculate(
             session=session,
             room_id=room_id,
         )
 
-        await session.commit()
+        text = _payments_text(payments, split)
 
-    text = _payments_text(payments, split)
-
-    await callback.message.edit_text(
-        text,
-        parse_mode="HTML",
-        reply_markup=payment_manage_menu(
+        await AnchorService.render(
+            bot=bot,
+            session=session,
             room_id=room_id,
-            payments=payments,
-        ),
-    )
+            user_id=current_user.id,
+            text=text,
+            keyboard=payment_manage_menu(
+                room_id=room_id,
+                payments=payments,
+            ),
+        )
+
+        room = await RoomService.get_by_id(
+            session=session,
+            room_id=room_id,
+        )
+
+        if room is None:
+            await callback.answer(
+                "❌ Комната не найдена.",
+                show_alert=True,
+            )
+            return
+
+        room_total = await ReceiptService.get_room_total(
+            session=session,
+            room_id=room_id,
+        )
+
+        async def render_menu_for(member_user_id):
+            return build_menu_screen(
+                room=room,
+                total=room_total,
+                members=members,
+                is_owner=(member_user_id == room.owner_id),
+            )
+
+        for member in members:
+
+            if member.user_id == current_user.id:
+                continue
+
+            text_for_member, keyboard_for_member = await render_menu_for(
+                member.user_id
+            )
+
+            await AnchorService.render(
+                bot=bot,
+                session=session,
+                room_id=room_id,
+                user_id=member.user_id,
+                text=text_for_member,
+                keyboard=keyboard_for_member,
+            )
+
+        await session.commit()
 
     await callback.answer(
         "✅ Платёж удалён"
@@ -411,16 +468,21 @@ async def payment_manage(
             room_id=room_id,
         )
 
-    text = _payments_text(payments, split)
+        text = _payments_text(payments, split)
 
-    await callback.message.edit_text(
-        text,
-        parse_mode="HTML",
-        reply_markup=payment_manage_menu(
+        await AnchorService.render(
+            bot=callback.bot,
+            session=session,
             room_id=room_id,
-            payments=payments,
-        ),
-    )
+            user_id=current_user.id,
+            text=text,
+            keyboard=payment_manage_menu(
+                room_id=room_id,
+                payments=payments,
+            ),
+        )
+
+        await session.commit()
 
     await callback.answer()
 
@@ -561,23 +623,19 @@ async def payment_payer(
             payer_id=user_id,
         )
 
-        await callback.message.edit_text(
-            f"💳 Плательщик: <b>{payer.first_name}</b>\n\n"
-            "💰 Введите сумму платежа:",
-            parse_mode="HTML",
-        )
-
-        # Сохраняем актуальное сообщение комнаты
-        await RoomViewService.save_message(
+        await AnchorService.render(
+            bot=callback.bot,
             session=session,
             room_id=room_id,
             user_id=current_user.id,
-            chat_id=callback.message.chat.id,
-            message_id=callback.message.message_id,
+            text=(
+                f"💳 Плательщик: <b>{payer.first_name}</b>\n\n"
+                "💰 Введите сумму платежа:"
+            ),
         )
 
         await session.commit()
-        
+
     await callback.answer()
 
 
@@ -623,21 +681,31 @@ async def payment_amount(
 
     async with AsyncSessionLocal() as session:
 
-        await RoomMessageService.send(
-            bot=message.bot,
+        user = await UserRepository.get_by_telegram_id(
             session=session,
-            room_id=room_id,
-            chat_id=message.chat.id,
-            text=(
-                f"💰 Сумма: <b>{amount:.2f} zł</b>\n\n"
-                "📝 Введите название расхода.\n\n"
-                "Например:\n"
-                "Пицца"
-            ),
-            parse_mode="HTML",
+            telegram_id=message.from_user.id,
         )
 
+        if user is not None:
+            await AnchorService.render(
+                bot=message.bot,
+                session=session,
+                room_id=room_id,
+                user_id=user.id,
+                text=(
+                    f"💰 Сумма: <b>{amount:.2f} zł</b>\n\n"
+                    "📝 Введите название расхода.\n\n"
+                    "Например:\n"
+                    "Пицца"
+                ),
+            )
+
         await session.commit()
+
+    try:
+        await message.delete()
+    except Exception:
+        pass
 
     await state.set_state(
         PaymentState.waiting_description
@@ -839,31 +907,61 @@ async def payment_description(
             + _payments_text(payments, split)
         )
 
-        # --------------------------------
-        # ОТПРАВЛЯЕМ И СОХРАНЯЕМ СООБЩЕНИЕ
-        # --------------------------------
-
-        await RoomMessageService.send(
+        await AnchorService.render(
             bot=bot,
             session=session,
             room_id=room_id,
-            chat_id=message.chat.id,
+            user_id=current_user.id,
             text=text,
-            parse_mode="HTML",
-            reply_markup=payment_manage_menu(
+            keyboard=payment_manage_menu(
                 room_id=room_id,
                 payments=payments,
             ),
         )
 
-        # --------------------------------
-        # ФИКСИРУЕМ ТРАНЗАКЦИЮ
-        # --------------------------------
+        room = await RoomService.get_by_id(
+            session=session,
+            room_id=room_id,
+        )
+
+        if room is None:
+            await message.answer(
+                "❌ Комната не найдена."
+            )
+            await state.clear()
+            return
+
+        room_total = await ReceiptService.get_room_total(
+            session=session,
+            room_id=room_id,
+        )
+
+        for member in members:
+
+            if member.user_id == current_user.id:
+                continue
+
+            menu_text, menu_keyboard = build_menu_screen(
+                room=room,
+                total=room_total,
+                members=members,
+                is_owner=(member.user_id == room.owner_id),
+            )
+
+            await AnchorService.render(
+                bot=bot,
+                session=session,
+                room_id=room_id,
+                user_id=member.user_id,
+                text=menu_text,
+                keyboard=menu_keyboard,
+            )
 
         await session.commit()
 
-    # --------------------------------
-    # ОЧИЩАЕМ FSM
-    # --------------------------------
-
     await state.clear()
+
+    try:
+        await message.delete()
+    except Exception:
+        pass
