@@ -5,6 +5,7 @@ import { useState } from "react";
 import { useAuth } from "@/lib/auth-context";
 import { useRoomData } from "@/hooks/useRoomData";
 import { api, getErrorMessage } from "@/lib/api";
+import { useTranslation } from "@/lib/i18n/LocaleProvider";
 import { useToast } from "@/components/ui/Toast";
 import { StatTile } from "@/components/ui/StatTile";
 import { Button } from "@/components/ui/Button";
@@ -24,6 +25,7 @@ export default function RoomPage() {
   const roomId = Number(params.id);
   const router = useRouter();
   const { user } = useAuth();
+  const { t } = useTranslation();
   const { showToast } = useToast();
   const { data, error, reload } = useRoomData(roomId);
 
@@ -142,7 +144,7 @@ export default function RoomPage() {
             {room.name ?? `Room ${room.code}`}
           </h1>
           <p className="mt-1 text-sm text-secondary">
-            {members.length} {members.length === 1 ? "member" : "members"} ·
+            {t("room.card.memberCount", { count: members.length })} ·{" "}
             code <span className="font-mono">{room.code}</span>
           </p>
         </div>
@@ -151,23 +153,23 @@ export default function RoomPage() {
           size="sm"
           onClick={() => setLeaveOrDelete(true)}
         >
-          {room.is_owner ? "Delete room" : "Leave room"}
+          {room.is_owner ? t("room.page.deleteRoom") : t("room.page.leaveRoom")}
         </Button>
       </div>
 
       <div className="grid grid-cols-1 gap-4 sm:grid-cols-3">
         <StatTile
-          label="You owe"
+          label={t("stats.youOwe")}
           value={formatSignedMoney(-dashboard.you_owe)}
           tone={dashboard.you_owe > 0 ? "negative" : "neutral"}
         />
         <StatTile
-          label="Owed to you"
+          label={t("stats.owedToYou")}
           value={formatSignedMoney(dashboard.you_are_owed)}
           tone={dashboard.you_are_owed > 0 ? "positive" : "neutral"}
         />
         <StatTile
-          label="Balance"
+          label={t("stats.balance")}
           value={formatSignedMoney(dashboard.balance)}
           tone={
             dashboard.balance > 0
@@ -192,7 +194,7 @@ export default function RoomPage() {
             <div className="mb-3 flex items-center justify-between">
               <span />
               <Button size="sm" onClick={() => setIsAddPaymentOpen(true)}>
-                + Add payment
+                + {t("room.actions.addPayment")}
               </Button>
             </div>
             <PaymentList payments={payments} />
@@ -242,13 +244,15 @@ export default function RoomPage() {
           setActionError(null);
         }}
         onConfirm={handleSettle}
-        title="Request settlement?"
+        title={t("room.page.requestSettlementTitle")}
         description={
           settleTarget
-            ? `Mark ${formatMoney(settleTarget.amount)} as being settled between these two members. The receiver will need to confirm.`
+            ? t("room.page.requestSettlementDescription", {
+                amount: formatMoney(settleTarget.amount),
+              })
             : ""
         }
-        confirmLabel="Request settlement"
+        confirmLabel={t("room.page.requestSettlementConfirm")}
         isLoading={isActing}
         error={actionError}
       />
@@ -260,9 +264,9 @@ export default function RoomPage() {
           setActionError(null);
         }}
         onConfirm={handleConfirmSettlement}
-        title="Confirm payment?"
-        description="Did you actually receive this payment? Confirming will mark the debt as settled."
-        confirmLabel="Confirm"
+        title={t("room.page.confirmPaymentTitle")}
+        description={t("room.page.confirmPaymentDescription")}
+        confirmLabel={t("common.confirm")}
         isLoading={isActing}
         error={actionError}
       />
@@ -274,13 +278,13 @@ export default function RoomPage() {
           setActionError(null);
         }}
         onConfirm={handleRemoveMember}
-        title="Remove member?"
+        title={t("room.page.removeMemberTitle")}
         description={
           removeTarget
-            ? `${removeTarget.first_name} will lose access to this room.`
+            ? t("room.page.removeMemberDescription", { name: removeTarget.first_name })
             : ""
         }
-        confirmLabel="Remove"
+        confirmLabel={t("room.actions.remove")}
         variant="danger"
         isLoading={isActing}
         error={actionError}
@@ -293,13 +297,13 @@ export default function RoomPage() {
           setActionError(null);
         }}
         onConfirm={handleLeaveOrDelete}
-        title={room.is_owner ? "Delete this room?" : "Leave this room?"}
+        title={room.is_owner ? t("room.page.deleteConfirmTitle") : t("room.page.leaveConfirmTitle")}
         description={
           room.is_owner
-            ? "This permanently deletes the room and all its payments, receipts and settlements. This cannot be undone."
-            : "You can rejoin later with the invite code."
+            ? t("room.page.deleteConfirmDescription")
+            : t("room.page.leaveConfirmDescription")
         }
-        confirmLabel={room.is_owner ? "Delete room" : "Leave room"}
+        confirmLabel={room.is_owner ? t("room.page.deleteRoom") : t("room.page.leaveRoom")}
         variant="danger"
         isLoading={isActing}
         error={actionError}
