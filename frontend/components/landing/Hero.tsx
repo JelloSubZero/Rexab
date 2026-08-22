@@ -6,6 +6,7 @@ import { ArrowRight, Sparkle } from "lucide-react";
 import { Container } from "@/components/ui/Container";
 import { Badge } from "@/components/ui/Badge";
 import { HeroDashboard } from "@/components/landing/HeroDashboard";
+import { useTranslation } from "@/lib/i18n/LocaleProvider";
 
 const fadeUp = {
   hidden: { opacity: 0, y: 16 },
@@ -13,6 +14,8 @@ const fadeUp = {
 };
 
 export function Hero() {
+  const { t } = useTranslation();
+
   return (
     <section className="relative overflow-hidden bg-dark pt-32 pb-24 lg:min-h-[92vh] lg:pt-40">
       <div
@@ -34,7 +37,7 @@ export function Hero() {
           >
             <Badge tone="dark">
               <Sparkle className="h-3 w-3 text-accent" aria-hidden="true" />
-              Shared expenses, simplified
+              {t("landing.hero.badge")}
             </Badge>
           </motion.div>
 
@@ -45,10 +48,10 @@ export function Hero() {
             transition={{ duration: 0.65, delay: 0.1 }}
             className="mt-6 text-[40px] font-semibold leading-[1.05] tracking-tight text-white sm:text-[52px] lg:text-[68px]"
           >
-            Manage shared expenses
+            {t("landing.hero.headline")}
             <br />
-            without the{" "}
-            <span className="text-accent">headache.</span>
+            {t("landing.hero.headlineSuffix")}{" "}
+            <span className="text-accent">{t("landing.hero.headlineAccent")}</span>
           </motion.h1>
 
           <motion.p
@@ -58,8 +61,7 @@ export function Hero() {
             transition={{ duration: 0.65, delay: 0.2 }}
             className="mt-6 max-w-[520px] text-lg leading-relaxed text-dark-muted"
           >
-            Rexab makes it simple to track expenses, split costs and
-            settle debts with your roommates, friends and travel groups.
+            {t("landing.hero.subtitle")}
           </motion.p>
 
           <motion.div
@@ -73,14 +75,14 @@ export function Hero() {
               href="/register"
               className="inline-flex items-center gap-2 rounded-lg bg-accent px-5 py-3 text-sm font-medium text-white transition-all hover:-translate-y-px hover:bg-accent-hover active:scale-[0.98]"
             >
-              Get started
+              {t("landing.cta.getStarted")}
               <ArrowRight className="h-4 w-4" aria-hidden="true" />
             </Link>
             <a
               href="#how-it-works"
               className="inline-flex items-center gap-2 rounded-lg border border-white/15 px-5 py-3 text-sm font-medium text-white transition-all hover:-translate-y-px hover:border-white/30 active:scale-[0.98]"
             >
-              See how it works
+              {t("landing.hero.seeHowItWorks")}
             </a>
           </motion.div>
         </div>
