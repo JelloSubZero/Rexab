@@ -5,6 +5,7 @@ import { Modal } from "@/components/ui/Modal";
 import { Input } from "@/components/ui/Input";
 import { Button } from "@/components/ui/Button";
 import { api, getErrorMessage } from "@/lib/api";
+import { useTranslation } from "@/lib/i18n/LocaleProvider";
 import type { Member } from "@/types/api";
 
 interface AddPaymentDialogProps {
@@ -24,6 +25,7 @@ export function AddPaymentDialog({
   currentUserId,
   onAdded,
 }: AddPaymentDialogProps) {
+  const { t } = useTranslation();
   const [amount, setAmount] = useState("");
   const [description, setDescription] = useState("");
   const [payerId, setPayerId] = useState(currentUserId);
@@ -37,7 +39,7 @@ export function AddPaymentDialog({
     const parsedAmount = Number(amount.replace(",", "."));
 
     if (!Number.isFinite(parsedAmount) || parsedAmount <= 0) {
-      setError("Enter a valid amount.");
+      setError(t("dialog.addPayment.invalidAmount"));
       return;
     }
 
@@ -61,13 +63,13 @@ export function AddPaymentDialog({
   }
 
   return (
-    <Modal isOpen={isOpen} onClose={onClose} title="Add payment">
+    <Modal isOpen={isOpen} onClose={onClose} title={t("room.actions.addPayment")}>
       <form onSubmit={handleSubmit} className="flex flex-col gap-4">
         <Input
           id="amount"
-          label="Amount"
+          label={t("dialog.addPayment.amountLabel")}
           inputMode="decimal"
-          placeholder="100"
+          placeholder={t("dialog.addPayment.amountPlaceholder")}
           required
           autoFocus
           value={amount}
@@ -76,15 +78,15 @@ export function AddPaymentDialog({
 
         <Input
           id="description"
-          label="Description"
-          placeholder="Dinner"
+          label={t("dialog.addPayment.descriptionLabel")}
+          placeholder={t("dialog.addPayment.descriptionPlaceholder")}
           value={description}
           onChange={(event) => setDescription(event.target.value)}
         />
 
         <div className="flex flex-col gap-1.5">
           <label htmlFor="payer" className="text-sm font-medium text-primary">
-            Paid by
+            {t("dialog.addPayment.paidByLabel")}
           </label>
           <select
             id="payer"
@@ -95,7 +97,7 @@ export function AddPaymentDialog({
             {members.map((member) => (
               <option key={member.user_id} value={member.user_id}>
                 {member.first_name}
-                {member.user_id === currentUserId ? " (you)" : ""}
+                {member.user_id === currentUserId ? t("dialog.addPayment.youSuffix") : ""}
               </option>
             ))}
           </select>
@@ -109,10 +111,10 @@ export function AddPaymentDialog({
 
         <div className="flex justify-end gap-2">
           <Button type="button" variant="secondary" onClick={onClose}>
-            Cancel
+            {t("common.cancel")}
           </Button>
           <Button type="submit" isLoading={isSubmitting}>
-            Add payment
+            {t("room.actions.addPayment")}
           </Button>
         </div>
       </form>
