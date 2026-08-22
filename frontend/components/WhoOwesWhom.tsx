@@ -4,6 +4,7 @@ import { Card } from "@/components/ui/Card";
 import { Button } from "@/components/ui/Button";
 import { EmptyState } from "@/components/ui/EmptyState";
 import { formatMoney } from "@/lib/format";
+import { useTranslation } from "@/lib/i18n/LocaleProvider";
 import type { Member, Transfer } from "@/types/api";
 
 interface WhoOwesWhomProps {
@@ -24,14 +25,16 @@ export function WhoOwesWhom({
   currentUserId,
   onSettle,
 }: WhoOwesWhomProps) {
+  const { t } = useTranslation();
+
   return (
     <Card>
       <h2 className="mb-3 text-sm font-semibold uppercase tracking-wide text-secondary">
-        Who owes whom
+        {t("whoOwesWhom.title")}
       </h2>
 
       {transfers.length === 0 ? (
-        <EmptyState icon="🎉" title="Everyone is settled up." />
+        <EmptyState icon="🎉" title={t("whoOwesWhom.emptyTitle")} />
       ) : (
         <ul className="flex flex-col divide-y divide-border">
           {transfers.map((transfer, index) => {
@@ -58,7 +61,7 @@ export function WhoOwesWhom({
                 </p>
                 {involvesCurrentUser && (
                   <Button size="sm" onClick={() => onSettle(transfer)}>
-                    Settle up
+                    {t("room.actions.settleUp")}
                   </Button>
                 )}
               </li>

@@ -4,6 +4,7 @@ import { Card } from "@/components/ui/Card";
 import { Button } from "@/components/ui/Button";
 import { EmptyState } from "@/components/ui/EmptyState";
 import { formatDate, formatMoney } from "@/lib/format";
+import { useTranslation } from "@/lib/i18n/LocaleProvider";
 import type { Member, Settlement } from "@/types/api";
 
 interface SettlementListProps {
@@ -26,17 +27,18 @@ export function SettlementList({
   onConfirm,
   isConfirming,
 }: SettlementListProps) {
+  const { t } = useTranslation();
   const pending = settlements.filter((s) => s.status === "pending");
   const history = settlements.filter((s) => s.status === "confirmed");
 
   return (
     <Card>
       <h2 className="mb-3 text-sm font-semibold uppercase tracking-wide text-secondary">
-        Settlements
+        {t("settlement.list.title")}
       </h2>
 
       {pending.length === 0 && history.length === 0 ? (
-        <EmptyState icon="💸" title="No settlements yet" />
+        <EmptyState icon="💸" title={t("settlement.list.emptyTitle")} />
       ) : (
         <div className="flex flex-col gap-4">
           {pending.length > 0 && (
@@ -53,7 +55,7 @@ export function SettlementList({
                       <span className="font-medium">
                         {nameFor(members, settlement.from_user_id)}
                       </span>{" "}
-                      owes{" "}
+                      {t("settlement.list.owesWord")}{" "}
                       <span className="font-medium">
                         {nameFor(members, settlement.to_user_id)}
                       </span>
@@ -68,11 +70,11 @@ export function SettlementList({
                         onClick={() => onConfirm(settlement)}
                         isLoading={isConfirming === settlement.id}
                       >
-                        Confirm payment
+                        {t("room.actions.confirmPayment")}
                       </Button>
                     ) : (
                       <p className="mt-2 text-xs text-warning">
-                        Waiting for confirmation
+                        {t("settlement.list.waitingConfirmation")}
                       </p>
                     )}
                   </div>
@@ -89,7 +91,7 @@ export function SettlementList({
                   <span className="font-medium text-primary">
                     {nameFor(members, settlement.from_user_id)}
                   </span>{" "}
-                  paid{" "}
+                  {t("common.paidWord")}{" "}
                   <span className="font-medium text-primary">
                     {nameFor(members, settlement.to_user_id)}
                   </span>{" "}

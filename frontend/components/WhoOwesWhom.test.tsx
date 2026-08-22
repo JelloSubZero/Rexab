@@ -2,6 +2,7 @@ import { render, screen } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { describe, expect, it, vi } from "vitest";
 import { WhoOwesWhom } from "@/components/WhoOwesWhom";
+import { LocaleProvider } from "@/lib/i18n/LocaleProvider";
 import type { Member, Transfer } from "@/types/api";
 
 const members: Member[] = [
@@ -31,12 +32,14 @@ const members: Member[] = [
 describe("WhoOwesWhom", () => {
   it("shows an empty state when there are no transfers", () => {
     render(
-      <WhoOwesWhom
-        transfers={[]}
-        members={members}
-        currentUserId={1}
-        onSettle={vi.fn()}
-      />,
+      <LocaleProvider>
+        <WhoOwesWhom
+          transfers={[]}
+          members={members}
+          currentUserId={1}
+          onSettle={vi.fn()}
+        />
+      </LocaleProvider>,
     );
 
     expect(screen.getByText(/settled up/i)).toBeInTheDocument();
@@ -49,12 +52,14 @@ describe("WhoOwesWhom", () => {
     ];
 
     render(
-      <WhoOwesWhom
-        transfers={transfers}
-        members={members}
-        currentUserId={1}
-        onSettle={vi.fn()}
-      />,
+      <LocaleProvider>
+        <WhoOwesWhom
+          transfers={transfers}
+          members={members}
+          currentUserId={1}
+          onSettle={vi.fn()}
+        />
+      </LocaleProvider>,
     );
 
     expect(screen.getAllByText("Settle up")).toHaveLength(1);
@@ -62,12 +67,14 @@ describe("WhoOwesWhom", () => {
 
   it("resolves user ids to first names", () => {
     render(
-      <WhoOwesWhom
-        transfers={[{ from_user_id: 2, to_user_id: 1, amount: 50 }]}
-        members={members}
-        currentUserId={1}
-        onSettle={vi.fn()}
-      />,
+      <LocaleProvider>
+        <WhoOwesWhom
+          transfers={[{ from_user_id: 2, to_user_id: 1, amount: 50 }]}
+          members={members}
+          currentUserId={1}
+          onSettle={vi.fn()}
+        />
+      </LocaleProvider>,
     );
 
     expect(screen.getByText("Alex")).toBeInTheDocument();
@@ -81,12 +88,14 @@ describe("WhoOwesWhom", () => {
     const user = userEvent.setup();
 
     render(
-      <WhoOwesWhom
-        transfers={[transfer]}
-        members={members}
-        currentUserId={1}
-        onSettle={onSettle}
-      />,
+      <LocaleProvider>
+        <WhoOwesWhom
+          transfers={[transfer]}
+          members={members}
+          currentUserId={1}
+          onSettle={onSettle}
+        />
+      </LocaleProvider>,
     );
 
     await user.click(screen.getByText("Settle up"));
