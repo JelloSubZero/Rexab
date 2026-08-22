@@ -2,6 +2,7 @@
 
 import { Modal } from "@/components/ui/Modal";
 import { Button } from "@/components/ui/Button";
+import { useTranslation } from "@/lib/i18n/LocaleProvider";
 
 interface ConfirmDialogProps {
   isOpen: boolean;
@@ -21,11 +22,13 @@ export function ConfirmDialog({
   onConfirm,
   title,
   description,
-  confirmLabel = "Confirm",
+  confirmLabel,
   variant = "primary",
   isLoading = false,
   error,
 }: ConfirmDialogProps) {
+  const { t } = useTranslation();
+
   return (
     <Modal isOpen={isOpen} onClose={onClose} title={title}>
       <p className="text-sm text-secondary">{description}</p>
@@ -38,10 +41,10 @@ export function ConfirmDialog({
 
       <div className="mt-5 flex justify-end gap-2">
         <Button variant="secondary" onClick={onClose}>
-          Cancel
+          {t("common.cancel")}
         </Button>
         <Button variant={variant} onClick={onConfirm} isLoading={isLoading}>
-          {confirmLabel}
+          {confirmLabel ?? t("common.confirm")}
         </Button>
       </div>
     </Modal>
