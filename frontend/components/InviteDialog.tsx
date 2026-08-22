@@ -3,6 +3,7 @@
 import { useState } from "react";
 import { Modal } from "@/components/ui/Modal";
 import { Button } from "@/components/ui/Button";
+import { useTranslation } from "@/lib/i18n/LocaleProvider";
 
 interface InviteDialogProps {
   isOpen: boolean;
@@ -11,6 +12,7 @@ interface InviteDialogProps {
 }
 
 export function InviteDialog({ isOpen, onClose, code }: InviteDialogProps) {
+  const { t } = useTranslation();
   const [copied, setCopied] = useState(false);
 
   async function handleCopy() {
@@ -20,16 +22,16 @@ export function InviteDialog({ isOpen, onClose, code }: InviteDialogProps) {
   }
 
   return (
-    <Modal isOpen={isOpen} onClose={onClose} title="Invite to room">
+    <Modal isOpen={isOpen} onClose={onClose} title={t("dialog.invite.title")}>
       <p className="text-sm text-secondary">
-        Share this code with friends so they can join.
+        {t("dialog.invite.description")}
       </p>
       <p className="mt-4 rounded-lg border border-border bg-bg px-4 py-3 text-center text-xl font-semibold tracking-widest text-primary">
         {code}
       </p>
       <div className="mt-4 flex justify-end">
         <Button onClick={handleCopy}>
-          {copied ? "Copied!" : "Copy code"}
+          {copied ? t("room.actions.copied") : t("room.actions.copyCode")}
         </Button>
       </div>
     </Modal>

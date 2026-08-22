@@ -1,5 +1,8 @@
+"use client";
+
 import { Card } from "@/components/ui/Card";
 import { Button } from "@/components/ui/Button";
+import { useTranslation } from "@/lib/i18n/LocaleProvider";
 import type { Member } from "@/types/api";
 
 interface MemberListProps {
@@ -15,11 +18,13 @@ export function MemberList({
   onInvite,
   onRemove,
 }: MemberListProps) {
+  const { t } = useTranslation();
+
   return (
     <Card>
       <div className="mb-3 flex items-center justify-between">
         <h2 className="text-sm font-semibold uppercase tracking-wide text-secondary">
-          Members
+          {t("member.list.title")}
         </h2>
         <span className="text-sm text-secondary">{members.length}</span>
       </div>
@@ -33,13 +38,13 @@ export function MemberList({
               {member.first_name.charAt(0).toUpperCase()}
             </span>
             <span className="flex-1 text-primary">{member.first_name}</span>
-            {member.is_owner && <span aria-label="Owner">👑</span>}
+            {member.is_owner && <span aria-label={t("member.list.ownerLabel")}>👑</span>}
             {isOwner && !member.is_owner && (
               <button
                 onClick={() => onRemove(member)}
                 className="text-xs font-medium text-negative hover:underline"
               >
-                Remove
+                {t("room.actions.remove")}
               </button>
             )}
           </li>
@@ -51,7 +56,7 @@ export function MemberList({
         className="mt-3 w-full"
         onClick={onInvite}
       >
-        + Add member
+        + {t("room.actions.addMember")}
       </Button>
     </Card>
   );
