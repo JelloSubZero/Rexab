@@ -5,12 +5,14 @@ import { useRouter } from "next/navigation";
 import { useEffect, useState, type FormEvent } from "react";
 import { useAuth } from "@/lib/auth-context";
 import { getErrorMessage } from "@/lib/api";
+import { useTranslation } from "@/lib/i18n/LocaleProvider";
 import { Button } from "@/components/ui/Button";
 import { Input } from "@/components/ui/Input";
 import { Card } from "@/components/ui/Card";
 
 export default function LoginPage() {
   const { login, user, isLoading: authLoading } = useAuth();
+  const { t } = useTranslation();
   const router = useRouter();
 
   const [email, setEmail] = useState("");
@@ -42,16 +44,16 @@ export default function LoginPage() {
   return (
     <div className="flex min-h-screen items-center justify-center bg-bg px-4">
       <Card className="w-full max-w-sm">
-        <h1 className="text-xl font-semibold text-primary">Welcome back</h1>
+        <h1 className="text-xl font-semibold text-primary">{t("auth.login.title")}</h1>
         <p className="mt-1 text-sm text-secondary">
-          Log in to see your rooms and balances.
+          {t("auth.login.subtitle")}
         </p>
 
         <form onSubmit={handleSubmit} className="mt-6 flex flex-col gap-4">
           <Input
             id="email"
             type="email"
-            label="Email"
+            label={t("auth.login.emailLabel")}
             autoComplete="email"
             required
             value={email}
@@ -60,7 +62,7 @@ export default function LoginPage() {
           <Input
             id="password"
             type="password"
-            label="Password"
+            label={t("auth.login.passwordLabel")}
             autoComplete="current-password"
             required
             value={password}
@@ -74,14 +76,14 @@ export default function LoginPage() {
           )}
 
           <Button type="submit" isLoading={isSubmitting} className="mt-2">
-            Log in
+            {t("auth.login.submit")}
           </Button>
         </form>
 
         <p className="mt-6 text-center text-sm text-secondary">
-          No account?{" "}
+          {t("auth.login.noAccount")}{" "}
           <Link href="/register" className="font-medium text-accent">
-            Create one
+            {t("auth.login.createOne")}
           </Link>
         </p>
       </Card>

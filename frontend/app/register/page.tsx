@@ -5,12 +5,14 @@ import { useRouter } from "next/navigation";
 import { useEffect, useState, type FormEvent } from "react";
 import { useAuth } from "@/lib/auth-context";
 import { getErrorMessage } from "@/lib/api";
+import { useTranslation } from "@/lib/i18n/LocaleProvider";
 import { Button } from "@/components/ui/Button";
 import { Input } from "@/components/ui/Input";
 import { Card } from "@/components/ui/Card";
 
 export default function RegisterPage() {
   const { register, user, isLoading: authLoading } = useAuth();
+  const { t } = useTranslation();
   const router = useRouter();
 
   const [firstName, setFirstName] = useState("");
@@ -30,7 +32,7 @@ export default function RegisterPage() {
     setError(null);
 
     if (password.length < 8) {
-      setError("Password must be at least 8 characters.");
+      setError(t("auth.register.passwordTooShort"));
       return;
     }
 
@@ -50,16 +52,16 @@ export default function RegisterPage() {
     <div className="flex min-h-screen items-center justify-center bg-bg px-4">
       <Card className="w-full max-w-sm">
         <h1 className="text-xl font-semibold text-primary">
-          Create your account
+          {t("auth.register.title")}
         </h1>
         <p className="mt-1 text-sm text-secondary">
-          Split bills with friends and roommates.
+          {t("auth.register.subtitle")}
         </p>
 
         <form onSubmit={handleSubmit} className="mt-6 flex flex-col gap-4">
           <Input
             id="firstName"
-            label="Name"
+            label={t("auth.register.nameLabel")}
             autoComplete="given-name"
             required
             value={firstName}
@@ -68,7 +70,7 @@ export default function RegisterPage() {
           <Input
             id="email"
             type="email"
-            label="Email"
+            label={t("auth.register.emailLabel")}
             autoComplete="email"
             required
             value={email}
@@ -77,7 +79,7 @@ export default function RegisterPage() {
           <Input
             id="password"
             type="password"
-            label="Password"
+            label={t("auth.register.passwordLabel")}
             autoComplete="new-password"
             required
             minLength={8}
@@ -92,14 +94,14 @@ export default function RegisterPage() {
           )}
 
           <Button type="submit" isLoading={isSubmitting} className="mt-2">
-            Create account
+            {t("auth.register.submit")}
           </Button>
         </form>
 
         <p className="mt-6 text-center text-sm text-secondary">
-          Already have an account?{" "}
+          {t("auth.register.haveAccount")}{" "}
           <Link href="/login" className="font-medium text-accent">
-            Log in
+            {t("auth.register.logIn")}
           </Link>
         </p>
       </Card>
