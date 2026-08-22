@@ -1,22 +1,20 @@
+"use client";
+
 import { Check } from "lucide-react";
 import { Container } from "@/components/ui/Container";
 import { FadeIn } from "@/components/landing/FadeIn";
-
-const points = [
-  "Clear balances",
-  "Transparent settlements",
-  "Permission-based actions",
-  "One source of truth",
-  "Simple group management",
-];
+import { useTranslation } from "@/lib/i18n/LocaleProvider";
 
 export function TrustSection() {
+  const { t, tList } = useTranslation();
+  const points = tList("landing.trust.points");
+
   return (
     <section className="bg-bg py-24 sm:py-32">
       <Container className="mx-auto max-w-2xl text-center">
         <FadeIn>
           <h2 className="text-3xl font-semibold tracking-tight text-primary sm:text-4xl">
-            Built around clarity.
+            {t("landing.trust.title")}
           </h2>
         </FadeIn>
 
@@ -39,9 +37,7 @@ export function TrustSection() {
 
         <FadeIn delay={0.2}>
           <p className="mx-auto mt-10 max-w-md text-sm text-secondary">
-            Every balance-changing action goes through a permission
-            check on the server — not the client — before it&apos;s
-            applied.
+            {t("landing.trust.footnote")}
           </p>
         </FadeIn>
       </Container>

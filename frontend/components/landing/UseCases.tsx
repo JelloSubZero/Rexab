@@ -1,32 +1,37 @@
+"use client";
+
 import { Home, Plane, Users } from "lucide-react";
 import { Container } from "@/components/ui/Container";
 import { FadeIn } from "@/components/landing/FadeIn";
-
-const useCases = [
-  {
-    icon: Home,
-    title: "Roommates",
-    items: ["Rent", "Groceries", "Utilities", "Internet"],
-  },
-  {
-    icon: Plane,
-    title: "Trips",
-    items: ["Hotels", "Food", "Transport", "Tickets"],
-  },
-  {
-    icon: Users,
-    title: "Groups",
-    items: ["Events", "Parties", "Projects", "Activities"],
-  },
-];
+import { useTranslation } from "@/lib/i18n/LocaleProvider";
 
 export function UseCases() {
+  const { t, tList } = useTranslation();
+
+  const useCases = [
+    {
+      icon: Home,
+      title: t("landing.useCases.roommates.title"),
+      items: tList("landing.useCases.roommates.items"),
+    },
+    {
+      icon: Plane,
+      title: t("landing.useCases.trips.title"),
+      items: tList("landing.useCases.trips.items"),
+    },
+    {
+      icon: Users,
+      title: t("landing.useCases.groups.title"),
+      items: tList("landing.useCases.groups.items"),
+    },
+  ];
+
   return (
     <section id="use-cases" className="bg-bg py-24 sm:py-32">
       <Container>
         <FadeIn className="mx-auto max-w-xl text-center">
           <h2 className="text-3xl font-semibold tracking-tight text-primary sm:text-4xl">
-            Wherever money is shared.
+            {t("landing.useCases.title")}
           </h2>
         </FadeIn>
 

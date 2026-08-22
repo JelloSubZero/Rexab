@@ -1,39 +1,44 @@
+"use client";
+
 import Link from "next/link";
 import { Container } from "@/components/ui/Container";
-
-const columns = [
-  {
-    title: "Product",
-    links: [
-      { label: "How it works", href: "#how-it-works" },
-      { label: "Features", href: "#features" },
-      { label: "Use cases", href: "#use-cases" },
-    ],
-  },
-  {
-    title: "Resources",
-    links: [
-      { label: "Help", href: "#" },
-      { label: "Documentation", href: "#" },
-    ],
-  },
-  {
-    title: "Company",
-    links: [
-      { label: "About", href: "#" },
-      { label: "Contact", href: "#" },
-    ],
-  },
-  {
-    title: "Legal",
-    links: [
-      { label: "Privacy", href: "#" },
-      { label: "Terms", href: "#" },
-    ],
-  },
-];
+import { useTranslation } from "@/lib/i18n/LocaleProvider";
 
 export function Footer() {
+  const { t } = useTranslation();
+
+  const columns = [
+    {
+      title: t("landing.footer.columns.product"),
+      links: [
+        { label: t("landing.nav.howItWorks"), href: "#how-it-works" },
+        { label: t("landing.nav.features"), href: "#features" },
+        { label: t("landing.nav.useCases"), href: "#use-cases" },
+      ],
+    },
+    {
+      title: t("landing.footer.columns.resources"),
+      links: [
+        { label: t("landing.footer.links.help"), href: "#" },
+        { label: t("landing.footer.links.documentation"), href: "#" },
+      ],
+    },
+    {
+      title: t("landing.footer.columns.company"),
+      links: [
+        { label: t("landing.footer.links.about"), href: "#" },
+        { label: t("landing.footer.links.contact"), href: "#" },
+      ],
+    },
+    {
+      title: t("landing.footer.columns.legal"),
+      links: [
+        { label: t("landing.footer.links.privacy"), href: "#" },
+        { label: t("landing.footer.links.terms"), href: "#" },
+      ],
+    },
+  ];
+
   return (
     <footer className="border-t border-border bg-card py-16">
       <Container>
@@ -52,7 +57,7 @@ export function Footer() {
               REXAB
             </Link>
             <p className="mt-3 text-sm text-secondary">
-              Shared expenses. Simplified.
+              {t("landing.footer.tagline")}
             </p>
           </div>
 
