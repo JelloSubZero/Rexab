@@ -3,10 +3,10 @@
 import { motion, useReducedMotion } from "framer-motion";
 import { MoreHorizontal, Plus } from "lucide-react";
 import { AnimatedNumber } from "@/components/landing/AnimatedNumber";
+import { useTranslation } from "@/lib/i18n/LocaleProvider";
 import {
   demoBalance,
   demoPayments,
-  demoRoomName,
   demoTransfers,
 } from "@/components/landing/mock-data";
 
@@ -47,6 +47,7 @@ function FloatingCard({
 }
 
 export function HeroDashboard() {
+  const { t } = useTranslation();
   const dinner = demoPayments[0];
 
   return (
@@ -59,7 +60,7 @@ export function HeroDashboard() {
         className="relative rounded-2xl border border-white/10 bg-card p-6 shadow-2xl"
       >
         <div className="flex items-center justify-between">
-          <p className="font-semibold text-primary">{demoRoomName}</p>
+          <p className="font-semibold text-primary">{t("landing.demo.roomName")}</p>
           <MoreHorizontal
             className="h-4 w-4 text-secondary"
             aria-hidden="true"
@@ -67,7 +68,7 @@ export function HeroDashboard() {
         </div>
 
         <p className="mt-5 text-xs font-medium uppercase tracking-wide text-secondary">
-          Your balance
+          {t("landing.heroDashboard.yourBalance")}
         </p>
         <p className="mt-1 text-4xl font-semibold text-positive">
           <AnimatedNumber value={demoBalance.balance} prefix="+" suffix=" zł" />
@@ -77,13 +78,13 @@ export function HeroDashboard() {
 
         <div className="flex flex-col gap-2 text-sm">
           <div className="flex items-center justify-between">
-            <span className="text-secondary">You owe</span>
+            <span className="text-secondary">{t("stats.youOwe")}</span>
             <span className="font-medium text-primary">
               {demoBalance.youOwe} zł
             </span>
           </div>
           <div className="flex items-center justify-between">
-            <span className="text-secondary">Owed to you</span>
+            <span className="text-secondary">{t("stats.owedToYou")}</span>
             <span className="font-medium text-primary">
               {demoBalance.youAreOwed} zł
             </span>
@@ -93,7 +94,7 @@ export function HeroDashboard() {
         <div className="my-5 h-px bg-border" />
 
         <p className="text-xs font-semibold uppercase tracking-wide text-secondary">
-          Who owes whom
+          {t("whoOwesWhom.title")}
         </p>
         <div className="mt-3 flex flex-col gap-2.5">
           {demoTransfers.map((transfer) => (
@@ -102,8 +103,9 @@ export function HeroDashboard() {
               className="flex items-center justify-between text-sm"
             >
               <span className="text-primary">
-                {transfer.from}{" "}
-                <span className="text-secondary">→</span> {transfer.to}
+                {transfer.from === "You" ? t("landing.demo.you") : transfer.from}{" "}
+                <span className="text-secondary">→</span>{" "}
+                {transfer.to === "You" ? t("landing.demo.you") : transfer.to}
               </span>
               <span className="font-medium text-primary">
                 {transfer.amount} zł
@@ -115,11 +117,11 @@ export function HeroDashboard() {
         <div className="my-5 h-px bg-border" />
 
         <p className="text-xs font-semibold uppercase tracking-wide text-secondary">
-          Recent payment
+          {t("landing.heroDashboard.recentPayment")}
         </p>
         <div className="mt-2 flex items-center justify-between text-sm">
           <span className="text-primary">
-            {dinner.emoji} {dinner.label}
+            {dinner.emoji} {t(dinner.labelKey)}
           </span>
           <span className="font-medium text-primary">
             {dinner.amount} zł
@@ -128,7 +130,7 @@ export function HeroDashboard() {
 
         <button className="mt-5 flex w-full items-center justify-center gap-1.5 rounded-lg border border-border py-2.5 text-sm font-medium text-primary transition-colors hover:bg-bg">
           <Plus className="h-4 w-4" aria-hidden="true" />
-          Add payment
+          {t("room.actions.addPayment")}
         </button>
       </motion.div>
 
@@ -138,7 +140,7 @@ export function HeroDashboard() {
         duration={7}
       >
         <p className="text-[11px] font-medium uppercase tracking-wide text-secondary">
-          You are owed
+          {t("landing.heroDashboard.youAreOwed")}
         </p>
         <p className="text-lg font-semibold text-positive">+230 zł</p>
       </FloatingCard>
@@ -148,7 +150,9 @@ export function HeroDashboard() {
         delay={1.3}
         duration={8}
       >
-        <p className="text-sm font-medium text-primary">✓ Settlement confirmed</p>
+        <p className="text-sm font-medium text-primary">
+          {t("landing.heroDashboard.settlementConfirmed")}
+        </p>
       </FloatingCard>
 
       <FloatingCard
@@ -157,7 +161,7 @@ export function HeroDashboard() {
         duration={6.5}
       >
         <p className="text-sm text-primary">
-          <span className="font-medium">Alex</span> paid
+          <span className="font-medium">Alex</span> {t("common.paidWord")}
         </p>
         <p className="text-sm font-semibold text-primary">50 zł</p>
       </FloatingCard>

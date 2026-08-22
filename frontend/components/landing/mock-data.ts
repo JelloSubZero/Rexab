@@ -21,10 +21,10 @@ export const demoTransfers = [
 ];
 
 export const demoPayments = [
-  { label: "Dinner", emoji: "🍕", amount: 80 },
-  { label: "Groceries", emoji: "🛒", amount: 120 },
-  { label: "Internet", emoji: "📶", amount: 40 },
-  { label: "Utilities", emoji: "💡", amount: 180 },
+  { labelKey: "landing.demo.payments.dinner", emoji: "🍕", amount: 80 },
+  { labelKey: "landing.demo.payments.groceries", emoji: "🛒", amount: 120 },
+  { labelKey: "landing.demo.payments.internet", emoji: "📶", amount: 40 },
+  { labelKey: "landing.demo.payments.utilities", emoji: "💡", amount: 180 },
 ];
 
 export const demoMemberBalances = [
