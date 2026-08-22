@@ -5,6 +5,7 @@ import { Modal } from "@/components/ui/Modal";
 import { Input } from "@/components/ui/Input";
 import { Button } from "@/components/ui/Button";
 import { api, getErrorMessage } from "@/lib/api";
+import { useTranslation } from "@/lib/i18n/LocaleProvider";
 import type { Room } from "@/types/api";
 
 interface JoinRoomDialogProps {
@@ -18,6 +19,7 @@ export function JoinRoomDialog({
   onClose,
   onJoined,
 }: JoinRoomDialogProps) {
+  const { t } = useTranslation();
   const [code, setCode] = useState("");
   const [error, setError] = useState<string | null>(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
@@ -40,11 +42,11 @@ export function JoinRoomDialog({
   }
 
   return (
-    <Modal isOpen={isOpen} onClose={onClose} title="Join a room">
+    <Modal isOpen={isOpen} onClose={onClose} title={t("dialog.joinRoom.title")}>
       <form onSubmit={handleSubmit} className="flex flex-col gap-4">
         <Input
           id="invite-code"
-          label="Invitation code"
+          label={t("dialog.joinRoom.codeLabel")}
           placeholder="X7K4-P9Q2"
           required
           autoFocus
@@ -60,10 +62,10 @@ export function JoinRoomDialog({
 
         <div className="flex justify-end gap-2">
           <Button type="button" variant="secondary" onClick={onClose}>
-            Cancel
+            {t("common.cancel")}
           </Button>
           <Button type="submit" isLoading={isSubmitting}>
-            Join room
+            {t("room.actions.join")}
           </Button>
         </div>
       </form>

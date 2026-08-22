@@ -5,6 +5,7 @@ import { Modal } from "@/components/ui/Modal";
 import { Input } from "@/components/ui/Input";
 import { Button } from "@/components/ui/Button";
 import { api, getErrorMessage } from "@/lib/api";
+import { useTranslation } from "@/lib/i18n/LocaleProvider";
 import type { Room } from "@/types/api";
 
 interface CreateRoomDialogProps {
@@ -18,6 +19,7 @@ export function CreateRoomDialog({
   onClose,
   onCreated,
 }: CreateRoomDialogProps) {
+  const { t } = useTranslation();
   const [name, setName] = useState("");
   const [error, setError] = useState<string | null>(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
@@ -40,12 +42,12 @@ export function CreateRoomDialog({
   }
 
   return (
-    <Modal isOpen={isOpen} onClose={onClose} title="Create room">
+    <Modal isOpen={isOpen} onClose={onClose} title={t("room.actions.create")}>
       <form onSubmit={handleSubmit} className="flex flex-col gap-4">
         <Input
           id="room-name"
-          label="Room name"
-          placeholder="Apartment"
+          label={t("dialog.createRoom.nameLabel")}
+          placeholder={t("dialog.createRoom.namePlaceholder")}
           required
           autoFocus
           value={name}
@@ -60,10 +62,10 @@ export function CreateRoomDialog({
 
         <div className="flex justify-end gap-2">
           <Button type="button" variant="secondary" onClick={onClose}>
-            Cancel
+            {t("common.cancel")}
           </Button>
           <Button type="submit" isLoading={isSubmitting}>
-            Create room
+            {t("room.actions.create")}
           </Button>
         </div>
       </form>

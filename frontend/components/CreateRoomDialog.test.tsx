@@ -2,6 +2,7 @@ import { render, screen, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { describe, expect, it, vi } from "vitest";
 import { CreateRoomDialog } from "@/components/CreateRoomDialog";
+import { LocaleProvider } from "@/lib/i18n/LocaleProvider";
 import { api, ApiError } from "@/lib/api";
 import type { Room } from "@/types/api";
 
@@ -34,7 +35,9 @@ describe("CreateRoomDialog", () => {
     const user = userEvent.setup();
 
     render(
-      <CreateRoomDialog isOpen onClose={onClose} onCreated={onCreated} />,
+      <LocaleProvider>
+        <CreateRoomDialog isOpen onClose={onClose} onCreated={onCreated} />
+      </LocaleProvider>,
     );
 
     await user.type(screen.getByLabelText("Room name"), "Apartment");
@@ -54,7 +57,9 @@ describe("CreateRoomDialog", () => {
     const user = userEvent.setup();
 
     render(
-      <CreateRoomDialog isOpen onClose={onClose} onCreated={onCreated} />,
+      <LocaleProvider>
+        <CreateRoomDialog isOpen onClose={onClose} onCreated={onCreated} />
+      </LocaleProvider>,
     );
 
     await user.type(screen.getByLabelText("Room name"), "x");
@@ -69,11 +74,13 @@ describe("CreateRoomDialog", () => {
 
   it("does not render when closed", () => {
     render(
-      <CreateRoomDialog
-        isOpen={false}
-        onClose={vi.fn()}
-        onCreated={vi.fn()}
-      />,
+      <LocaleProvider>
+        <CreateRoomDialog
+          isOpen={false}
+          onClose={vi.fn()}
+          onCreated={vi.fn()}
+        />
+      </LocaleProvider>,
     );
 
     expect(screen.queryByLabelText("Room name")).not.toBeInTheDocument();
