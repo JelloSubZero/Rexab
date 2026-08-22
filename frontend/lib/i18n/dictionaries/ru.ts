@@ -85,6 +85,13 @@ export const ru: Dictionary = {
   "room.page.removeMemberTitle": "Удалить участника?",
   "room.page.removeMemberDescription": ({ name }) =>
     `${name} потеряет доступ к этой комнате.`,
+  "room.page.codeLabel": "код",
+  "room.page.toastSettlementRequested": "Расчёт запрошен.",
+  "room.page.toastPaymentConfirmed": "Платёж подтверждён.",
+  "room.page.toastMemberRemoved": ({ name }) => `${name} удалён(а) из комнаты.`,
+  "room.page.toastRoomDeleted": "Комната удалена.",
+  "room.page.toastLeftRoom": "Вы покинули комнату.",
+  "room.page.toastPaymentAdded": "Платёж добавлен.",
 
   "payment.list.title": "Платежи",
   "payment.list.emptyTitle": "Платежей пока нет",

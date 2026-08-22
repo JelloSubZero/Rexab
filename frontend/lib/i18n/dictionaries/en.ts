@@ -94,6 +94,13 @@ export const en: Dictionary = {
   "room.page.removeMemberTitle": "Remove member?",
   "room.page.removeMemberDescription": ({ name }) =>
     `${name} will lose access to this room.`,
+  "room.page.codeLabel": "code",
+  "room.page.toastSettlementRequested": "Settlement requested.",
+  "room.page.toastPaymentConfirmed": "Payment confirmed.",
+  "room.page.toastMemberRemoved": ({ name }) => `${name} removed from the room.`,
+  "room.page.toastRoomDeleted": "Room deleted.",
+  "room.page.toastLeftRoom": "You left the room.",
+  "room.page.toastPaymentAdded": "Payment added.",
 
   // payment list
   "payment.list.title": "Payments",

@@ -1,3 +1,5 @@
+"use client";
+
 import { Container } from "@/components/ui/Container";
 import { FadeIn } from "@/components/landing/FadeIn";
 import { useTranslation } from "@/lib/i18n/LocaleProvider";

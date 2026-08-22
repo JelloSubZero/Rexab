@@ -34,21 +34,33 @@ export function detectLocale(): Locale {
 }
 
 export function LocaleProvider({ children }: { children: ReactNode }) {
-  const [locale, setLocaleState] = useState<Locale | null>(null);
+  const [locale, setLocaleState] = useState<Locale>("en");
 
   useEffect(() => {
-    const stored = localStorage.getItem(STORAGE_KEY);
-    const resolved: Locale =
-      stored === "en" || stored === "ru" ? stored : detectLocale();
+    let resolved: Locale;
+    try {
+      const stored = localStorage.getItem(STORAGE_KEY);
+      resolved = stored === "en" || stored === "ru" ? stored : detectLocale();
+      if (!stored) localStorage.setItem(STORAGE_KEY, resolved);
+    } catch {
+      resolved = detectLocale();
+    }
 
     // eslint-disable-next-line react-hooks/set-state-in-effect
     setLocaleState(resolved);
-
-    if (!stored) localStorage.setItem(STORAGE_KEY, resolved);
   }, []);
 
+  useEffect(() => {
+    document.documentElement.lang = locale;
+  }, [locale]);
+
   const setLocale = useCallback((next: Locale) => {
-    localStorage.setItem(STORAGE_KEY, next);
+    try {
+      localStorage.setItem(STORAGE_KEY, next);
+    } catch {
+      // Storage unavailable (privacy mode, etc.) - locale still switches
+      // for this session, it just won't persist across reloads.
+    }
     setLocaleState(next);
   }, []);
 
@@ -92,8 +104,6 @@ export function LocaleProvider({ children }: { children: ReactNode }) {
     },
     [locale],
   );
-
-  if (locale === null) return null;
 
   return (
     <LocaleContext.Provider value={{ locale, setLocale, t, tList }}>

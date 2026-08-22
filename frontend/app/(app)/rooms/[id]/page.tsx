@@ -73,7 +73,7 @@ export default function RoomPage() {
         to_user_id: settleTarget.to_user_id,
         amount: settleTarget.amount,
       });
-      showToast("Settlement requested.");
+      showToast(t("room.page.toastSettlementRequested"));
       setSettleTarget(null);
       await reload();
     } catch (err) {
@@ -90,7 +90,7 @@ export default function RoomPage() {
 
     try {
       await api.settlements.confirm(confirmTarget.id);
-      showToast("Payment confirmed.");
+      showToast(t("room.page.toastPaymentConfirmed"));
       setConfirmTarget(null);
       await reload();
     } catch (err) {
@@ -107,7 +107,7 @@ export default function RoomPage() {
 
     try {
       await api.members.remove(roomId, removeTarget.user_id);
-      showToast(`${removeTarget.first_name} removed from the room.`);
+      showToast(t("room.page.toastMemberRemoved", { name: removeTarget.first_name }));
       setRemoveTarget(null);
       await reload();
     } catch (err) {
@@ -124,10 +124,10 @@ export default function RoomPage() {
     try {
       if (room.is_owner) {
         await api.rooms.delete(roomId);
-        showToast("Room deleted.");
+        showToast(t("room.page.toastRoomDeleted"));
       } else {
         await api.rooms.leave(roomId);
-        showToast("You left the room.");
+        showToast(t("room.page.toastLeftRoom"));
       }
       router.replace("/dashboard");
     } catch (err) {
@@ -141,11 +141,11 @@ export default function RoomPage() {
       <div className="flex items-start justify-between">
         <div>
           <h1 className="text-2xl font-semibold text-primary">
-            {room.name ?? `Room ${room.code}`}
+            {room.name ?? t("room.card.unnamedRoom", { code: room.code })}
           </h1>
           <p className="mt-1 text-sm text-secondary">
             {t("room.card.memberCount", { count: members.length })} ·{" "}
-            code <span className="font-mono">{room.code}</span>
+            {t("room.page.codeLabel")} <span className="font-mono">{room.code}</span>
           </p>
         </div>
         <Button
@@ -226,7 +226,7 @@ export default function RoomPage() {
         members={members}
         currentUserId={user.id}
         onAdded={() => {
-          showToast("Payment added.");
+          showToast(t("room.page.toastPaymentAdded"));
           reload();
         }}
       />

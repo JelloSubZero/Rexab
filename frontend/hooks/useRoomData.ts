@@ -46,10 +46,11 @@ export function useRoomData(roomId: number) {
   }, [roomId]);
 
   useEffect(() => {
-    // Clear the previous room's data immediately so it can't be shown
-    // under the new room while the new fetch is in flight.
+    // Clear the previous room's data/error immediately so neither can be
+    // shown under the new room while the new fetch is in flight.
     // eslint-disable-next-line react-hooks/set-state-in-effect
     setData(null);
+    setError(null);
     reload();
   }, [reload]);
 

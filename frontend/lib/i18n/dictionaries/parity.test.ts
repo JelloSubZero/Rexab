@@ -18,4 +18,22 @@ describe("translation dictionary parity", () => {
       }
     }
   });
+
+  it("function-valued and array-valued keys have matching shapes across locales", () => {
+    for (const key of Object.keys(en)) {
+      const enValue = en[key];
+      const ruValue = ru[key];
+
+      expect(typeof ruValue, `key "${key}": function/string mismatch`).toBe(
+        typeof enValue,
+      );
+
+      if (Array.isArray(enValue)) {
+        expect(Array.isArray(ruValue), `key "${key}": expected an array in ru`).toBe(true);
+        expect((ruValue as string[]).length, `key "${key}": array length mismatch`).toBe(
+          enValue.length,
+        );
+      }
+    }
+  });
 });
