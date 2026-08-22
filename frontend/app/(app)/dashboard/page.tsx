@@ -3,6 +3,7 @@
 import { useCallback, useEffect, useState } from "react";
 import { useAuth } from "@/lib/auth-context";
 import { api, getErrorMessage } from "@/lib/api";
+import { useTranslation } from "@/lib/i18n/LocaleProvider";
 import { StatTile } from "@/components/ui/StatTile";
 import { Button } from "@/components/ui/Button";
 import { Skeleton } from "@/components/ui/Skeleton";
@@ -21,6 +22,7 @@ interface RoomWithBalance {
 
 export default function DashboardPage() {
   const { user } = useAuth();
+  const { t } = useTranslation();
   const [rooms, setRooms] = useState<RoomWithBalance[] | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [isCreateOpen, setIsCreateOpen] = useState(false);
@@ -62,10 +64,10 @@ export default function DashboardPage() {
     <div className="mx-auto flex max-w-4xl flex-col gap-8">
       <div>
         <h1 className="text-2xl font-semibold text-primary">
-          Good to see you, {user?.first_name}
+          {t("dashboard.greeting", { name: user?.first_name ?? "" })}
         </h1>
         <p className="mt-1 text-sm text-secondary">
-          Here&apos;s what&apos;s happening in your rooms.
+          {t("dashboard.subtitle")}
         </p>
       </div>
 
@@ -78,17 +80,17 @@ export default function DashboardPage() {
       ) : (
         <div className="grid grid-cols-1 gap-4 sm:grid-cols-3">
           <StatTile
-            label="You owe"
+            label={t("stats.youOwe")}
             value={formatSignedMoney(-youOwe)}
             tone={youOwe > 0 ? "negative" : "neutral"}
           />
           <StatTile
-            label="Owed to you"
+            label={t("stats.owedToYou")}
             value={formatSignedMoney(youAreOwed)}
             tone={youAreOwed > 0 ? "positive" : "neutral"}
           />
           <StatTile
-            label="Balance"
+            label={t("stats.balance")}
             value={formatSignedMoney(netBalance)}
             tone={
               netBalance > 0
@@ -103,17 +105,17 @@ export default function DashboardPage() {
 
       <div>
         <div className="mb-3 flex items-center justify-between">
-          <h2 className="text-lg font-semibold text-primary">Your rooms</h2>
+          <h2 className="text-lg font-semibold text-primary">{t("dashboard.yourRooms")}</h2>
           <div className="flex gap-2">
             <Button
               variant="secondary"
               size="sm"
               onClick={() => setIsJoinOpen(true)}
             >
-              Join room
+              {t("room.actions.join")}
             </Button>
             <Button size="sm" onClick={() => setIsCreateOpen(true)}>
-              + Create room
+              + {t("room.actions.create")}
             </Button>
           </div>
         </div>
@@ -134,11 +136,11 @@ export default function DashboardPage() {
         {rooms !== null && rooms.length === 0 && (
           <EmptyState
             icon="🏠"
-            title="No rooms yet"
-            description="Create a room to start splitting expenses, or join one with an invite code."
+            title={t("dashboard.noRoomsTitle")}
+            description={t("dashboard.noRoomsDescription")}
             action={
               <Button size="sm" onClick={() => setIsCreateOpen(true)}>
-                + Create room
+                + {t("room.actions.create")}
               </Button>
             }
           />

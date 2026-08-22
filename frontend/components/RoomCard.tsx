@@ -1,6 +1,9 @@
+"use client";
+
 import Link from "next/link";
 import { formatSignedMoney } from "@/lib/format";
 import { clsx } from "@/lib/clsx";
+import { useTranslation } from "@/lib/i18n/LocaleProvider";
 import type { Room } from "@/types/api";
 
 interface RoomCardProps {
@@ -9,6 +12,7 @@ interface RoomCardProps {
 }
 
 export function RoomCard({ room, balance }: RoomCardProps) {
+  const { t } = useTranslation();
   const tone =
     balance === null
       ? "text-secondary"
@@ -25,11 +29,10 @@ export function RoomCard({ room, balance }: RoomCardProps) {
     >
       <div>
         <p className="font-medium text-primary">
-          {room.name ?? `Room ${room.code}`}
+          {room.name ?? t("room.card.unnamedRoom", { code: room.code })}
         </p>
         <p className="text-sm text-secondary">
-          {room.members_count}{" "}
-          {room.members_count === 1 ? "member" : "members"}
+          {t("room.card.memberCount", { count: room.members_count })}
         </p>
       </div>
       <span className={clsx("font-semibold", tone)}>
