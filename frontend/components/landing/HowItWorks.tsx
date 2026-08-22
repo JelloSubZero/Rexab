@@ -1,38 +1,43 @@
+"use client";
+
 import { Home, Receipt, CheckCircle2 } from "lucide-react";
 import { Container } from "@/components/ui/Container";
 import { FadeIn } from "@/components/landing/FadeIn";
-
-const steps = [
-  {
-    number: "01",
-    icon: Home,
-    title: "Create a room",
-    description: "Create a space for your apartment, trip or group.",
-  },
-  {
-    number: "02",
-    icon: Receipt,
-    title: "Add expenses",
-    description: "Record who paid and who should share the cost.",
-  },
-  {
-    number: "03",
-    icon: CheckCircle2,
-    title: "Settle up",
-    description: "Rexab calculates who owes whom and tracks repayments.",
-  },
-];
+import { useTranslation } from "@/lib/i18n/LocaleProvider";
 
 export function HowItWorks() {
+  const { t } = useTranslation();
+
+  const steps = [
+    {
+      number: "01",
+      icon: Home,
+      title: t("landing.howItWorks.step1.title"),
+      description: t("landing.howItWorks.step1.description"),
+    },
+    {
+      number: "02",
+      icon: Receipt,
+      title: t("landing.howItWorks.step2.title"),
+      description: t("landing.howItWorks.step2.description"),
+    },
+    {
+      number: "03",
+      icon: CheckCircle2,
+      title: t("landing.howItWorks.step3.title"),
+      description: t("landing.howItWorks.step3.description"),
+    },
+  ];
+
   return (
     <section id="how-it-works" className="bg-card py-24 sm:py-32">
       <Container>
         <FadeIn className="mx-auto max-w-xl text-center">
           <h2 className="text-3xl font-semibold tracking-tight text-primary sm:text-4xl">
-            How Rexab works.
+            {t("landing.howItWorks.title")}
           </h2>
           <p className="mt-4 text-lg text-secondary">
-            Three simple steps. No spreadsheets. No calculations.
+            {t("landing.howItWorks.subtitle")}
           </p>
         </FadeIn>
 

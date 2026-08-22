@@ -4,6 +4,7 @@ import { motion } from "framer-motion";
 import { ArrowRight } from "lucide-react";
 import { Container } from "@/components/ui/Container";
 import { FadeIn } from "@/components/landing/FadeIn";
+import { useTranslation } from "@/lib/i18n/LocaleProvider";
 
 const chaosItems = [
   { label: "Alex", amount: "120 zł", className: "left-[6%] top-2 rotate-[-4deg]" },
@@ -17,16 +18,17 @@ const clearTransfers = [
 ];
 
 export function ProblemSection() {
+  const { t } = useTranslation();
+
   return (
     <section className="bg-bg py-24 sm:py-32">
       <Container>
         <FadeIn className="mx-auto max-w-2xl text-center">
           <h2 className="text-3xl font-semibold tracking-tight text-primary sm:text-4xl">
-            Shared expenses shouldn&apos;t be complicated.
+            {t("landing.problem.title")}
           </h2>
           <p className="mt-4 text-lg leading-relaxed text-secondary">
-            You paid for dinner. Someone bought groceries. Another person
-            paid the rent. And now&nbsp;&mdash; who owes whom?
+            {t("landing.problem.subtitle")}
           </p>
         </FadeIn>
 
@@ -34,7 +36,7 @@ export function ProblemSection() {
           <FadeIn delay={0.1}>
             <div className="relative h-56 rounded-2xl border border-border bg-card p-6">
               <p className="text-xs font-semibold uppercase tracking-wide text-secondary">
-                Without Rexab
+                {t("landing.problem.withoutRexab")}
               </p>
               <div className="relative mt-4 h-32">
                 {chaosItems.map((item) => (
@@ -69,7 +71,7 @@ export function ProblemSection() {
           <FadeIn delay={0.3}>
             <div className="rounded-2xl border border-accent/20 bg-card p-6 shadow-sm">
               <p className="text-xs font-semibold uppercase tracking-wide text-accent">
-                With Rexab
+                {t("landing.problem.withRexab")}
               </p>
               <div className="mt-4 flex flex-col gap-3">
                 {clearTransfers.map((transfer) => (

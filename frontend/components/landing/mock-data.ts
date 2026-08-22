@@ -5,8 +5,6 @@
  * dashboard response later is a straight substitution.
  */
 
-export const demoRoomName = "Apartment";
-
 export const demoMembers = ["Daniel", "Alex", "John", "Michael"];
 
 export const demoBalance = {
