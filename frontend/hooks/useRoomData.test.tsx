@@ -14,7 +14,16 @@ vi.mock("@/lib/api", () => ({
 }));
 
 function makeRoom(id: number) {
-  return { id, name: `Room ${id}`, code: `CODE${id}`, is_owner: true };
+  return {
+    id,
+    name: `Room ${id}`,
+    code: `CODE${id}`,
+    status: "active" as const,
+    owner_id: 1,
+    is_owner: true,
+    members_count: 1,
+    created_at: "2026-01-01T00:00:00Z",
+  };
 }
 
 function TestConsumer({ roomId }: { roomId: number }) {
@@ -32,6 +41,9 @@ describe("useRoomData", () => {
       you_owe: 0,
       you_are_owed: 0,
       balance: 0,
+      members_count: 1,
+      pending_settlements: 0,
+      recent_payments: [],
       transfers: [],
     });
   });
