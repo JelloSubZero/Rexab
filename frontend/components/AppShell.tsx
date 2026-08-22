@@ -6,17 +6,20 @@ import type { ReactNode } from "react";
 import { useEffect, useState } from "react";
 import { useAuth } from "@/lib/auth-context";
 import { clsx } from "@/lib/clsx";
-
-const NAV_ITEMS = [
-  { href: "/dashboard", label: "Dashboard", icon: "🏠" },
-  { href: "/settings", label: "Settings", icon: "⚙️" },
-];
+import { useTranslation } from "@/lib/i18n/LocaleProvider";
+import { LanguageSwitcher } from "@/components/LanguageSwitcher";
 
 export function AppShell({ children }: { children: ReactNode }) {
   const { user, isLoading, logout } = useAuth();
+  const { t } = useTranslation();
   const router = useRouter();
   const pathname = usePathname();
   const [menuOpen, setMenuOpen] = useState(false);
+
+  const navItems = [
+    { href: "/dashboard", label: t("nav.dashboard"), icon: "🏠" },
+    { href: "/settings", label: t("nav.settings"), icon: "⚙️" },
+  ];
 
   useEffect(() => {
     if (!isLoading && !user) {
@@ -43,7 +46,7 @@ export function AppShell({ children }: { children: ReactNode }) {
             Rexab
           </div>
           <nav className="flex flex-1 flex-col gap-1 px-3">
-            {NAV_ITEMS.map((item) => {
+            {navItems.map((item) => {
               const isActive = pathname.startsWith(item.href);
               return (
                 <Link
@@ -70,45 +73,48 @@ export function AppShell({ children }: { children: ReactNode }) {
               Rexab
             </span>
             <span className="hidden md:block" />
-            <div className="relative">
-              <button
-                onClick={() => setMenuOpen((open) => !open)}
-                className="flex items-center gap-2 rounded-lg px-2 py-1.5 text-sm font-medium text-primary hover:bg-bg focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent"
-                aria-haspopup="menu"
-                aria-expanded={menuOpen}
-              >
-                <span className="flex h-7 w-7 items-center justify-center rounded-full bg-accent/10 text-accent">
-                  {user.first_name.charAt(0).toUpperCase()}
-                </span>
-                {user.first_name}
-                <span aria-hidden="true">▾</span>
-              </button>
-              {menuOpen && (
-                <div
-                  role="menu"
-                  className="absolute right-0 z-10 mt-2 w-44 overflow-hidden rounded-lg border border-border bg-card shadow-md"
+            <div className="flex items-center gap-3">
+              <LanguageSwitcher />
+              <div className="relative">
+                <button
+                  onClick={() => setMenuOpen((open) => !open)}
+                  className="flex items-center gap-2 rounded-lg px-2 py-1.5 text-sm font-medium text-primary hover:bg-bg focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent"
+                  aria-haspopup="menu"
+                  aria-expanded={menuOpen}
                 >
-                  <Link
-                    href="/settings"
-                    role="menuitem"
-                    className="block px-4 py-2.5 text-sm text-primary hover:bg-bg"
-                    onClick={() => setMenuOpen(false)}
+                  <span className="flex h-7 w-7 items-center justify-center rounded-full bg-accent/10 text-accent">
+                    {user.first_name.charAt(0).toUpperCase()}
+                  </span>
+                  {user.first_name}
+                  <span aria-hidden="true">▾</span>
+                </button>
+                {menuOpen && (
+                  <div
+                    role="menu"
+                    className="absolute right-0 z-10 mt-2 w-44 overflow-hidden rounded-lg border border-border bg-card shadow-md"
                   >
-                    Settings
-                  </Link>
-                  <button
-                    role="menuitem"
-                    onClick={() => {
-                      setMenuOpen(false);
-                      logout();
-                      router.replace("/login");
-                    }}
-                    className="block w-full px-4 py-2.5 text-left text-sm text-negative hover:bg-negative-bg"
-                  >
-                    Log out
-                  </button>
-                </div>
-              )}
+                    <Link
+                      href="/settings"
+                      role="menuitem"
+                      className="block px-4 py-2.5 text-sm text-primary hover:bg-bg"
+                      onClick={() => setMenuOpen(false)}
+                    >
+                      {t("nav.settings")}
+                    </Link>
+                    <button
+                      role="menuitem"
+                      onClick={() => {
+                        setMenuOpen(false);
+                        logout();
+                        router.replace("/login");
+                      }}
+                      className="block w-full px-4 py-2.5 text-left text-sm text-negative hover:bg-negative-bg"
+                    >
+                      {t("nav.logout")}
+                    </button>
+                  </div>
+                )}
+              </div>
             </div>
           </header>
 
@@ -119,7 +125,7 @@ export function AppShell({ children }: { children: ReactNode }) {
       </div>
 
       <nav className="fixed inset-x-0 bottom-0 z-20 flex border-t border-border bg-card md:hidden">
-        {NAV_ITEMS.map((item) => {
+        {navItems.map((item) => {
           const isActive = pathname.startsWith(item.href);
           return (
             <Link

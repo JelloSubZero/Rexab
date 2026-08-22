@@ -5,16 +5,19 @@ import { useEffect, useState } from "react";
 import { Menu, X } from "lucide-react";
 import { clsx } from "@/lib/clsx";
 import { Container } from "@/components/ui/Container";
-
-const LINKS = [
-  { href: "#how-it-works", label: "How it works" },
-  { href: "#features", label: "Features" },
-  { href: "#use-cases", label: "Use cases" },
-];
+import { useTranslation } from "@/lib/i18n/LocaleProvider";
+import { LanguageSwitcher } from "@/components/LanguageSwitcher";
 
 export function Navbar() {
+  const { t } = useTranslation();
   const [isScrolled, setIsScrolled] = useState(false);
   const [isMenuOpen, setIsMenuOpen] = useState(false);
+
+  const links = [
+    { href: "#how-it-works", label: t("landing.nav.howItWorks") },
+    { href: "#features", label: t("landing.nav.features") },
+    { href: "#use-cases", label: t("landing.nav.useCases") },
+  ];
 
   useEffect(() => {
     const handleScroll = () => {
@@ -55,7 +58,7 @@ export function Navbar() {
         </Link>
 
         <nav className="hidden items-center gap-8 md:flex">
-          {LINKS.map((link) => (
+          {links.map((link) => (
             <a
               key={link.href}
               href={link.href}
@@ -81,13 +84,14 @@ export function Navbar() {
                 : "text-dark-muted hover:text-white",
             )}
           >
-            Login
+            {t("landing.nav.login")}
           </Link>
+          <LanguageSwitcher variant={light ? "light" : "dark"} />
           <Link
             href="/register"
             className="rounded-lg bg-accent px-4 py-2 text-sm font-medium text-white transition-all hover:-translate-y-px hover:bg-accent-hover active:scale-[0.98]"
           >
-            Get started
+            {t("landing.cta.getStarted")}
           </Link>
         </div>
 
@@ -97,7 +101,7 @@ export function Navbar() {
             "rounded-md p-2 md:hidden",
             light ? "text-primary" : "text-white",
           )}
-          aria-label={isMenuOpen ? "Close menu" : "Open menu"}
+          aria-label={isMenuOpen ? t("landing.nav.closeMenu") : t("landing.nav.openMenu")}
           aria-expanded={isMenuOpen}
         >
           {isMenuOpen ? (
@@ -111,7 +115,7 @@ export function Navbar() {
       {isMenuOpen && (
         <div className="border-t border-border bg-card px-6 py-4 md:hidden">
           <nav className="flex flex-col gap-4">
-            {LINKS.map((link) => (
+            {links.map((link) => (
               <a
                 key={link.href}
                 href={link.href}
@@ -126,14 +130,14 @@ export function Navbar() {
               onClick={() => setIsMenuOpen(false)}
               className="text-sm font-medium text-secondary hover:text-primary"
             >
-              Login
+              {t("landing.nav.login")}
             </Link>
             <Link
               href="/register"
               onClick={() => setIsMenuOpen(false)}
               className="rounded-lg bg-accent px-4 py-2.5 text-center text-sm font-medium text-white"
             >
-              Get started
+              {t("landing.cta.getStarted")}
             </Link>
           </nav>
         </div>

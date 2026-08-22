@@ -3,6 +3,7 @@ import { Inter } from "next/font/google";
 import "./globals.css";
 import { AuthProvider } from "@/lib/auth-context";
 import { ToastProvider } from "@/components/ui/Toast";
+import { LocaleProvider } from "@/lib/i18n/LocaleProvider";
 
 const inter = Inter({
   variable: "--font-inter",
@@ -40,9 +41,11 @@ export default function RootLayout({
   return (
     <html lang="en" className={`${inter.variable} h-full`}>
       <body className="min-h-full bg-bg text-primary antialiased">
-        <AuthProvider>
-          <ToastProvider>{children}</ToastProvider>
-        </AuthProvider>
+        <LocaleProvider>
+          <AuthProvider>
+            <ToastProvider>{children}</ToastProvider>
+          </AuthProvider>
+        </LocaleProvider>
       </body>
     </html>
   );
